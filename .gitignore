@@ -46,3 +46,4 @@ apps/mobile/android/build/
 
 # Railway / deployment
 .railway/
+.next/
