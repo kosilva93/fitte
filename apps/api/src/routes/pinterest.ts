@@ -21,7 +21,7 @@ router.get('/auth-url', (req: Request, res: Response) => {
 });
 
 // GET /pinterest/callback — handle OAuth redirect
-router.get('/callback', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/callback', async (_req: Request, _res: Response, next: NextFunction) => {
   // TODO: exchange code for token, encrypt and store in pinterest_connections
   try {
     throw new AppError(501, 'Pinterest callback not yet implemented');

@@ -6,7 +6,7 @@ import { requireTier } from '../middleware/requireTier';
 const router = Router();
 
 // GET /trends — Premium only
-router.get('/', requireTier('premium'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', requireTier('premium'), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const { data, error } = await supabase
       .from('trend_items')
