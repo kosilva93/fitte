@@ -1,0 +1,26 @@
+{
+  "name": "fitte",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "mobile": "yarn workspace @fitte/mobile start",
+    "api": "yarn workspace @fitte/api dev",
+    "web": "yarn workspace @fitte/web dev",
+    "test": "yarn workspaces run test",
+    "lint": "yarn workspaces run lint",
+    "format": "yarn workspaces run format",
+    "typecheck": "yarn workspaces run typecheck"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "yarn": ">=1.22.0"
+  },
+  "resolutions": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}
