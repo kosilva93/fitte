@@ -30,6 +30,9 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
         "ACCESS_FINE_LOCATION"
       ]
     },
@@ -48,9 +51,19 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "e9e516cb-a5e9-4156-ac17-e145fd830bd8"
       }
+    },
+    "owner": "kosilva93",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e9e516cb-a5e9-4156-ac17-e145fd830bd8"
     }
   }
 }
