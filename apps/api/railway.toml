@@ -1,3 +1,7 @@
+[project]
+id = "f4f8d925-1d9d-408f-9baa-06438ad5a83c"
+environment = "production"
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
