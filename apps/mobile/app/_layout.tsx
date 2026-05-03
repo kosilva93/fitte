@@ -1,6 +1,7 @@
 import '../global.css';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { supabase } from '@/utils/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -30,13 +31,15 @@ export default function RootLayout() {
   }, [setSession]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
