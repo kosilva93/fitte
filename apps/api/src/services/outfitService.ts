@@ -114,7 +114,8 @@ Return this exact JSON structure:
 
   let parsed: { outfits: GeneratedOutfit[] };
   try {
-    parsed = JSON.parse(content.text);
+    const clean = content.text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+    parsed = JSON.parse(clean);
   } catch {
     logger.error('Claude returned non-JSON response', { userId, text: content.text.slice(0, 200) });
     throw new Error('Failed to parse outfit recommendations');
