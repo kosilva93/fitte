@@ -150,7 +150,10 @@ Return this exact JSON structure:
     generation_round: request.generation_round,
   }));
 
-  await supabase.from('generated_outfits').insert(outfitsToInsert);
+  const { data: inserted } = await supabase
+    .from('generated_outfits')
+    .insert(outfitsToInsert)
+    .select();
 
-  return parsed.outfits;
+  return inserted ?? [];
 }
