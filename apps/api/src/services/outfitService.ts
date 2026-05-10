@@ -13,8 +13,16 @@ interface OutfitRequest {
   generation_round: number;
 }
 
+interface RecommendedItem {
+  type: string;
+  description: string;
+  price_range: string;
+  brands: string[];
+}
+
 interface GeneratedOutfit {
   item_ids: string[];
+  recommended_items: RecommendedItem[];
   description: string;
   color_logic: string;
 }
@@ -65,7 +73,7 @@ export async function generateOutfit(
     `Generation round: ${request.generation_round} (vary outfits from previous rounds)`,
   ].filter(Boolean).join('\n');
 
-  const prompt = `You are Fitte, a high-end AI personal stylist. Generate 3 distinct outfit combinations from the wardrobe below.
+  const prompt = `You are Fitte, a high-end AI personal stylist. Generate 3 distinct outfit combinations.
 
 USER PROFILE:
 ${profileSummary || 'No profile data available'}
@@ -73,24 +81,33 @@ ${profileSummary || 'No profile data available'}
 CONTEXT:
 ${contextSummary}
 
-STYLING RULES:
-- Describe each outfit ground-up: shoes → bottoms/dress → top → outerwear → accessories
-- Apply color theory and note if monochromatic, complementary, or analogous
-- Factor in the user's body type for silhouette choices (e.g. curvy → avoid boxy cuts, athletic → structured jackets work well)
-- Align with the user's aesthetic preferences as the style direction
-- Only use items from the wardrobe list — never invent items
-- Make each of the 3 outfits clearly distinct from each other
-- Keep descriptions vivid but concise (2-3 sentences max per outfit)
-- Return valid JSON only, no markdown, no explanation
-
 WARDROBE ITEMS (with IDs):
-${wardrobeContext}
+${wardrobeContext || 'No wardrobe items uploaded yet.'}
+
+STYLING RULES:
+- Build each outfit ground-up: shoes → bottoms/dress → top → outerwear → accessories
+- Use wardrobe items (by ID) when they fit the occasion and vibe
+- For any gap in the outfit (missing item type or wardrobe is empty), add a recommended_item with a specific purchase suggestion instead — never skip a layer
+- recommended_items should be realistic, specific, and within the user's budget range
+- Apply color theory and note if monochromatic, complementary, or analogous
+- Factor in body type for silhouette choices
+- Make each of the 3 outfits clearly distinct
+- Keep descriptions vivid but concise (2-3 sentences max)
+- Return valid JSON only, no markdown
 
 Return this exact JSON structure:
 {
   "outfits": [
     {
-      "item_ids": ["uuid1", "uuid2"],
+      "item_ids": ["uuid-of-owned-item"],
+      "recommended_items": [
+        {
+          "type": "shoes",
+          "description": "White leather low-top sneakers",
+          "price_range": "$80-120",
+          "brands": ["New Balance", "Adidas"]
+        }
+      ],
       "description": "Ground-up outfit description...",
       "color_logic": "monochromatic|complementary|analogous"
     }
@@ -126,7 +143,8 @@ Return this exact JSON structure:
     user_id: userId,
     occasion: request.occasion,
     vibe: request.vibe,
-    item_ids: o.item_ids,
+    item_ids: o.item_ids ?? [],
+    recommended_items: o.recommended_items ?? [],
     description: o.description,
     color_logic: o.color_logic,
     generation_round: request.generation_round,

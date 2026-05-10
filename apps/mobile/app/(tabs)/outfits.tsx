@@ -2,7 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-nativ
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch } from '@/utils/api';
-import { GeneratedOutfit } from '@/types';
+import { GeneratedOutfit, RecommendedItem } from '@/types';
 
 const VIBE_SUGGESTIONS = [
   'Casual', 'Sharp', 'Relaxed', 'Bold', 'Understated',
@@ -29,9 +29,21 @@ function OutfitCard({
       {outfit.vibe && (
         <Text className="text-gray-500 text-xs mb-2">· {outfit.vibe}</Text>
       )}
-      <Text className="text-gray-300 text-sm leading-relaxed">{outfit.description}</Text>
+      <Text className="text-gray-300 text-sm leading-relaxed mb-3">{outfit.description}</Text>
 
-      <View className="flex-row items-center mt-3 gap-2">
+      {outfit.recommended_items?.length > 0 && (
+        <View className="bg-black rounded-xl p-3 mb-3">
+          <Text className="text-gray-500 text-xs uppercase mb-2">Consider buying</Text>
+          {outfit.recommended_items.map((item: RecommendedItem, i: number) => (
+            <View key={i} className="mb-2">
+              <Text className="text-white text-xs font-medium capitalize">{item.type} — {item.description}</Text>
+              <Text className="text-gray-500 text-xs">{item.price_range} · {item.brands.join(', ')}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <View className="flex-row items-center gap-2">
         {onSave && !outfit.saved && (
           <TouchableOpacity
             onPress={() => onSave(outfit.id)}

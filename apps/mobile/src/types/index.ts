@@ -23,6 +23,13 @@ export interface WardrobeItem {
   created_at: string;
 }
 
+export interface RecommendedItem {
+  type: string;
+  description: string;
+  price_range: string;
+  brands: string[];
+}
+
 export interface GeneratedOutfit {
   id: string;
   user_id: string;
@@ -30,6 +37,7 @@ export interface GeneratedOutfit {
   vibe: string | null;
   weather_context: Record<string, unknown> | null;
   item_ids: string[];
+  recommended_items: RecommendedItem[];
   description: string;
   color_logic: string | null;
   saved: boolean;
