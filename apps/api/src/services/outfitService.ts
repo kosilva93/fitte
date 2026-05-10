@@ -150,10 +150,15 @@ Return this exact JSON structure:
     generation_round: request.generation_round,
   }));
 
-  const { data: inserted } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from('generated_outfits')
     .insert(outfitsToInsert)
     .select();
+
+  if (insertError) {
+    logger.error('Failed to insert outfits', { userId, error: insertError });
+    throw new Error('Failed to save outfits');
+  }
 
   return inserted ?? [];
 }
