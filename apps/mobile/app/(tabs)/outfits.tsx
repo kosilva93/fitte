@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch } from '@/utils/api';
@@ -13,75 +13,104 @@ function OutfitCard({
   outfit,
   onSave,
   onFeedback,
+  onVisualize,
+  isVisualizing,
 }: {
   outfit: GeneratedOutfit;
   onSave?: (id: string) => void;
   onFeedback?: (id: string, feedback: 'loved' | 'disliked') => void;
+  onVisualize?: (id: string) => void;
+  isVisualizing?: boolean;
 }) {
   return (
-    <View className="bg-gray-900 rounded-xl p-4">
-      <View className="flex-row justify-between items-start mb-2">
-        <Text className="text-white font-medium capitalize flex-1 mr-2">{outfit.occasion}</Text>
-        {outfit.color_logic && (
-          <Text className="text-gray-600 text-xs capitalize">{outfit.color_logic}</Text>
-        )}
-      </View>
-      {outfit.vibe && (
-        <Text className="text-gray-500 text-xs mb-2">· {outfit.vibe}</Text>
-      )}
-      <Text className="text-gray-300 text-sm leading-relaxed mb-3">{outfit.description}</Text>
+    <View className="bg-gray-900 rounded-xl overflow-hidden mb-3">
+      {outfit.image_url ? (
+        <Image
+          source={{ uri: outfit.image_url }}
+          style={{ width: '100%', height: 300 }}
+          resizeMode="cover"
+        />
+      ) : onVisualize ? (
+        <TouchableOpacity
+          onPress={() => onVisualize(outfit.id)}
+          disabled={isVisualizing}
+          className="bg-gray-800 items-center justify-center py-10"
+        >
+          {isVisualizing ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+              <Text className="text-white text-2xl mb-1">✦</Text>
+              <Text className="text-gray-400 text-xs">Tap to visualize outfit</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      ) : null}
 
-      {outfit.recommended_items?.length > 0 && (
-        <View className="bg-black rounded-xl p-3 mb-3">
-          <Text className="text-gray-500 text-xs uppercase mb-2">Consider buying</Text>
-          {outfit.recommended_items.map((item: RecommendedItem, i: number) => (
-            <View key={i} className="mb-2">
-              <Text className="text-white text-xs font-medium capitalize">{item.type} — {item.description}</Text>
-              <Text className="text-gray-500 text-xs">{item.price_range} · {item.brands.join(', ')}</Text>
-            </View>
-          ))}
+      <View className="p-4">
+        <View className="flex-row justify-between items-start mb-2">
+          <Text className="text-white font-medium capitalize flex-1 mr-2">{outfit.occasion}</Text>
+          {outfit.color_logic && (
+            <Text className="text-gray-600 text-xs capitalize">{outfit.color_logic}</Text>
+          )}
         </View>
-      )}
-
-      <View className="flex-row items-center gap-2">
-        {onSave && !outfit.saved && (
-          <TouchableOpacity
-            onPress={() => onSave(outfit.id)}
-            className="border border-gray-700 rounded-full px-3 py-1.5"
-          >
-            <Text className="text-gray-500 text-xs">Save to lookbook</Text>
-          </TouchableOpacity>
+        {outfit.vibe && (
+          <Text className="text-gray-500 text-xs mb-2">· {outfit.vibe}</Text>
         )}
-        {outfit.saved && (
-          <Text className="text-gray-600 text-xs">Saved ✓</Text>
-        )}
+        <Text className="text-gray-300 text-sm leading-relaxed mb-3">{outfit.description}</Text>
 
-        {onFeedback && (
-          <View className="flex-row gap-2 ml-auto">
-            <TouchableOpacity
-              onPress={() => onFeedback(outfit.id, 'loved')}
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 8,
-                backgroundColor: outfit.feedback === 'loved' ? 'rgba(20,83,45,0.5)' : 'transparent',
-              }}
-            >
-              <Text className="text-sm">👍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => onFeedback(outfit.id, 'disliked')}
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 8,
-                backgroundColor: outfit.feedback === 'disliked' ? 'rgba(127,29,29,0.5)' : 'transparent',
-              }}
-            >
-              <Text className="text-sm">👎</Text>
-            </TouchableOpacity>
+        {outfit.recommended_items?.length > 0 && (
+          <View className="bg-black rounded-xl p-3 mb-3">
+            <Text className="text-gray-500 text-xs uppercase mb-2">Consider buying</Text>
+            {outfit.recommended_items.map((item: RecommendedItem, i: number) => (
+              <View key={i} className="mb-2">
+                <Text className="text-white text-xs font-medium capitalize">{item.type} — {item.description}</Text>
+                <Text className="text-gray-500 text-xs">{item.price_range} · {item.brands.join(', ')}</Text>
+              </View>
+            ))}
           </View>
         )}
+
+        <View className="flex-row items-center gap-2">
+          {onSave && !outfit.saved && (
+            <TouchableOpacity
+              onPress={() => onSave(outfit.id)}
+              className="border border-gray-700 rounded-full px-3 py-1.5"
+            >
+              <Text className="text-gray-500 text-xs">Save to lookbook</Text>
+            </TouchableOpacity>
+          )}
+          {outfit.saved && (
+            <Text className="text-gray-600 text-xs">Saved ✓</Text>
+          )}
+
+          {onFeedback && (
+            <View className="flex-row gap-2 ml-auto">
+              <TouchableOpacity
+                onPress={() => onFeedback(outfit.id, 'loved')}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: outfit.feedback === 'loved' ? 'rgba(20,83,45,0.5)' : 'transparent',
+                }}
+              >
+                <Text className="text-sm">👍</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onFeedback(outfit.id, 'disliked')}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: outfit.feedback === 'disliked' ? 'rgba(127,29,29,0.5)' : 'transparent',
+                }}
+              >
+                <Text className="text-sm">👎</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -92,6 +121,7 @@ export default function OutfitsScreen() {
   const [occasion, setOccasion] = useState('');
   const [vibe, setVibe] = useState('');
   const [generated, setGenerated] = useState<GeneratedOutfit[]>([]);
+  const [visualizingId, setVisualizingId] = useState<string | null>(null);
 
   const { data: lookbook } = useQuery({
     queryKey: ['outfits'],
@@ -119,6 +149,19 @@ export default function OutfitsScreen() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['outfits'] }),
   });
 
+  const { mutate: visualize } = useMutation({
+    mutationFn: (id: string) =>
+      apiPost<{ image_url: string }>(`/outfits/${id}/visualize`, {}),
+    onMutate: (id) => setVisualizingId(id),
+    onSuccess: (data, id) => {
+      setGenerated((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, image_url: data.image_url } : o))
+      );
+      setVisualizingId(null);
+    },
+    onError: () => setVisualizingId(null),
+  });
+
   function handleSave(id: string) {
     saveOutfit(id);
     setGenerated((prev) => prev.map((o) => (o.id === id ? { ...o, saved: true } : o)));
@@ -137,7 +180,6 @@ export default function OutfitsScreen() {
         <Text className="text-white text-2xl font-bold">Outfits</Text>
       </View>
 
-      {/* Generator card */}
       <View className="mx-6 bg-gray-900 rounded-2xl p-5 mb-6">
         <Text className="text-white font-semibold text-base mb-4">What are you dressing for?</Text>
 
@@ -194,38 +236,34 @@ export default function OutfitsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Generated results */}
       {generated.length > 0 && (
         <View className="px-6 mb-6">
           <Text className="text-gray-500 text-xs uppercase tracking-wide mb-3">Generated</Text>
-          <View className="space-y-3">
-            {generated.map((outfit) => (
-              <OutfitCard
-                key={outfit.id}
-                outfit={outfit}
-                onSave={handleSave}
-                onFeedback={handleFeedback}
-              />
-            ))}
-          </View>
+          {generated.map((outfit) => (
+            <OutfitCard
+              key={outfit.id}
+              outfit={outfit}
+              onSave={handleSave}
+              onFeedback={handleFeedback}
+              onVisualize={(id) => visualize(id)}
+              isVisualizing={visualizingId === outfit.id}
+            />
+          ))}
         </View>
       )}
 
-      {/* Lookbook */}
       <View className="px-6">
         <Text className="text-gray-500 text-xs uppercase tracking-wide mb-3">Saved Lookbook</Text>
         {savedOutfits.length === 0 ? (
           <Text className="text-gray-600 text-sm">No saved outfits yet.</Text>
         ) : (
-          <View className="space-y-3">
-            {savedOutfits.map((outfit) => (
-              <OutfitCard
-                key={outfit.id}
-                outfit={{ ...outfit, saved: true }}
-                onFeedback={handleFeedback}
-              />
-            ))}
-          </View>
+          savedOutfits.map((outfit) => (
+            <OutfitCard
+              key={outfit.id}
+              outfit={{ ...outfit, saved: true }}
+              onFeedback={handleFeedback}
+            />
+          ))
         )}
       </View>
     </ScrollView>

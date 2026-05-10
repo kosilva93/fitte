@@ -40,6 +40,7 @@ export interface GeneratedOutfit {
   recommended_items: RecommendedItem[];
   description: string;
   color_logic: string | null;
+  image_url: string | null;
   saved: boolean;
   feedback: 'loved' | 'disliked' | null;
   created_at: string;

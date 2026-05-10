@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { generateOutfit } from '../services/outfitService';
+import { visualizeOutfit } from '../services/visualizeService';
 
 const router = Router();
 
@@ -62,6 +63,16 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     if (error) throw new AppError(500, 'Failed to fetch lookbook');
     res.json({ outfits: data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /outfits/:id/visualize
+router.post('/:id/visualize', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const imageUrl = await visualizeOutfit(String(req.params.id), req.userId);
+    res.json({ image_url: imageUrl });
   } catch (err) {
     next(err);
   }
