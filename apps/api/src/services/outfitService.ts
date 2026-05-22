@@ -56,7 +56,7 @@ export async function generateOutfit(
   // Build a readable profile summary for Claude
   const profileSummary = [
     profile?.age ? `Age: ${profile.age}` : null,
-    profile?.gender ? `Style identity: ${profile.gender}` : null,
+    profile?.gender ? `Style identity: ${profile.gender}` : 'Style identity: gender-neutral / unisex — do not assume gender',
     profile?.body_type ? `Body type: ${profile.body_type}` : null,
     profile?.aesthetics?.length ? `Aesthetic preferences: ${profile.aesthetics.join(', ')}` : null,
     profile?.preferred_brands?.length ? `Preferred brands: ${profile.preferred_brands.join(', ')}` : null,
