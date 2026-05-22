@@ -37,13 +37,13 @@ export async function visualizeOutfit(outfitId: string, userId: string): Promise
   const storagePath = `outfit-visualizations/${userId}/${outfitId}.png`;
 
   const { error: uploadError } = await supabase.storage
-    .from('wardrobe-photos')
+    .from('outfit-visualizations')
     .upload(storagePath, buffer, { contentType: 'image/png', upsert: true });
 
   if (uploadError) throw new Error(`Failed to upload visualization: ${uploadError.message}`);
 
   const { data: { publicUrl } } = supabase.storage
-    .from('wardrobe-photos')
+    .from('outfit-visualizations')
     .getPublicUrl(storagePath);
 
   await supabase
