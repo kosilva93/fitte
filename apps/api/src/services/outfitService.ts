@@ -123,6 +123,7 @@ Return this exact JSON structure:
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1500,
+    system: 'You are a JSON API. Respond with raw JSON only — no markdown, no code fences, no explanation. Just the JSON object.',
     messages: [{ role: 'user', content: prompt }],
   });
 
@@ -135,7 +136,7 @@ Return this exact JSON structure:
     if (!jsonMatch) throw new Error('no JSON object found');
     parsed = JSON.parse(jsonMatch[0]);
   } catch {
-    logger.error('Claude returned non-JSON response', { userId, text: content.text.slice(0, 200) });
+    logger.error('Claude returned non-JSON response', { userId, text: content.text.slice(0, 500) });
     throw new Error('Failed to parse outfit recommendations');
   }
 
