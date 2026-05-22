@@ -122,7 +122,7 @@ Return this exact JSON structure:
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1500,
+    max_tokens: 4000,
     system: 'You are a JSON API. Respond with raw JSON only — no markdown, no code fences, no explanation. Just the JSON object.',
     messages: [{ role: 'user', content: prompt }],
   });
