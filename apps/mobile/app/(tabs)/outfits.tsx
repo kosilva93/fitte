@@ -1,7 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import * as Location from 'expo-location';
 import { apiGet, apiPost, apiPatch, apiStream } from '@/utils/api';
 import { GeneratedOutfit, RecommendedItem } from '@/types';
 
@@ -32,18 +31,27 @@ function weatherEmoji(code: number): string {
 interface Weather { temp_c: number; condition: string; emoji: string }
 
 async function fetchWeather(): Promise<Weather | null> {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') return null;
-  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-  const { latitude, longitude } = loc.coords;
-  const res = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code`
-  );
-  const json = await res.json();
-  const code: number = json.current?.weather_code ?? 0;
-  const temp_c = Math.round(json.current?.temperature_2m ?? 0);
-  const condition = WMO_CONDITION[code] ?? 'Clear';
-  return { temp_c, condition, emoji: weatherEmoji(code) };
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code`
+          );
+          const json = await res.json();
+          const code: number = json.current?.weather_code ?? 0;
+          const temp_c = Math.round(json.current?.temperature_2m ?? 0);
+          const condition = WMO_CONDITION[code] ?? 'Clear';
+          resolve({ temp_c, condition, emoji: weatherEmoji(code) });
+        } catch {
+          resolve(null);
+        }
+      },
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  });
 }
 
 function OutfitCard({
@@ -197,14 +205,13 @@ export default function OutfitsScreen() {
     setGenerateError(null);
     setGenerated([]);
     try {
-      await apiStream<GeneratedOutfit>('/outfits/generate', {
+      const result = await apiPost<{ outfits: GeneratedOutfit[] }>('/outfits/generate', {
         occasion,
         vibe: vibeValue,
         generation_round: generationRound,
         weather_override: weather ? { temp_c: weather.temp_c, condition: weather.condition } : undefined,
-      }, (outfit) => {
-        setGenerated((prev) => [...prev, outfit]);
       });
+      setGenerated(result.outfits);
       setGenerationRound((r) => r + 1);
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Something went wrong');

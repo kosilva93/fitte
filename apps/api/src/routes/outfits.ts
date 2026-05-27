@@ -21,9 +21,8 @@ const generateSchema = z.object({
   generation_round: z.number().int().min(1).default(1),
 });
 
-// POST /outfits/generate — SSE stream, emits each outfit as it's ready
-router.post('/generate', async (req: Request, res: Response) => {
-  // Enforce Free tier weekly limit
+// POST /outfits/generate
+router.post('/generate', async (req: Request, res: Response, next: NextFunction) => {
   if (req.userTier === 'free') {
     const weekStart = getWeekStart();
     const { data: counter } = await supabase
@@ -47,32 +46,20 @@ router.post('/generate', async (req: Request, res: Response) => {
     return;
   }
 
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-
-  const insertedIds: string[] = [];
-
   try {
+    const outfits = [];
     for await (const outfit of generateOutfitStream(req.userId, body)) {
-      insertedIds.push(outfit.id);
-      res.write(`data: ${JSON.stringify(outfit)}\n\n`);
+      outfits.push(outfit);
     }
 
     await incrementUsageCounter(req.userId);
-    res.write('data: [DONE]\n\n');
-    res.end();
+    res.json({ outfits });
 
-    // Pre-generate visualizations silently after response is sent
-    for (const id of insertedIds) {
-      visualizeOutfit(id, req.userId).catch(() => {});
+    for (const outfit of outfits) {
+      visualizeOutfit(outfit.id, req.userId).catch(() => {});
     }
   } catch (err) {
-    const message = err instanceof AppError ? err.message : 'Failed to generate outfits';
-    res.write(`data: {"error":"${message}"}\n\n`);
-    res.end();
+    next(err);
   }
 });
 
