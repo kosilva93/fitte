@@ -15,20 +15,32 @@ const queryClient = new QueryClient({
   },
 });
 
+async function syncTier(userId: string, setUserTier: (t: 'free' | 'pro' | 'premium') => void) {
+  const { data } = await supabase
+    .from('user_subscriptions')
+    .select('tier, valid_until')
+    .eq('user_id', userId)
+    .single();
+  const isActive = data?.valid_until ? new Date(data.valid_until) > new Date() : true;
+  setUserTier((data?.tier && isActive) ? data.tier : 'free');
+}
+
 export default function RootLayout() {
-  const { setSession } = useAuthStore();
+  const { setSession, setUserTier } = useAuthStore();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) syncTier(session.user.id, setUserTier);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) syncTier(session.user.id, setUserTier);
     });
 
     return () => subscription.unsubscribe();
-  }, [setSession]);
+  }, [setSession, setUserTier]);
 
   return (
     <ErrorBoundary>
@@ -36,6 +48,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" />
+          <Stack.Screen name="profile-setup" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
         </Stack>

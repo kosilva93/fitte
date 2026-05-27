@@ -27,33 +27,31 @@ interface GeneratedOutfit {
   color_logic: string;
 }
 
-export async function generateOutfit(
+function sanitize(value: string | undefined | null): string | undefined {
+  if (!value) return undefined;
+  return value.replace(/[<>{}[\]\\]/g, '').slice(0, 200);
+}
+
+export async function* generateOutfitStream(
   userId: string,
   request: OutfitRequest
-): Promise<GeneratedOutfit[]> {
-  // 1. Load wardrobe
-  const { data: items } = await supabase
-    .from('wardrobe_items')
-    .select('id, item_type, colors, silhouette, fabric, label, tags, occasion_tags, season')
-    .eq('user_id', userId)
-    .is('deleted_at', null);
-
-  // 2. Load full user profile for context
-  const { data: profile } = await supabase
-    .from('users')
-    .select('age, gender, body_type, aesthetics, preferred_brands, staple_items, budget_min, budget_max, city')
-    .eq('id', userId)
-    .single();
+) {
+  // 1. Parallel fetch — wardrobe + profile at the same time
+  const [{ data: items }, { data: profile }] = await Promise.all([
+    supabase
+      .from('wardrobe_items')
+      .select('id, item_type, colors, silhouette, fabric, label, tags, occasion_tags, season')
+      .eq('user_id', userId)
+      .is('deleted_at', null),
+    supabase
+      .from('users')
+      .select('age, gender, body_type, aesthetics, preferred_brands, staple_items, budget_min, budget_max, city')
+      .eq('id', userId)
+      .single(),
+  ]);
 
   const wardrobeContext = JSON.stringify(items ?? [], null, 2);
 
-  // Sanitize user-controlled strings before interpolating into the prompt
-  function sanitize(value: string | undefined | null): string | undefined {
-    if (!value) return undefined;
-    return value.replace(/[<>{}[\]\\]/g, '').slice(0, 200);
-  }
-
-  // Build a readable profile summary for Claude
   const profileSummary = [
     profile?.age ? `Age: ${profile.age}` : null,
     profile?.gender ? `Style identity: ${profile.gender}` : 'Style identity: gender-neutral / unisex — do not assume gender',
@@ -73,21 +71,44 @@ export async function generateOutfit(
     `Generation round: ${request.generation_round} (vary outfits from previous rounds)`,
   ].filter(Boolean).join('\n');
 
-  const prompt = `You are Fitte, a high-end AI personal stylist. Generate 3 distinct outfit combinations.
+  logger.debug('Calling Claude for outfit generation', {
+    userId,
+    occasion: request.occasion,
+    wardrobeSize: items?.length ?? 0,
+  });
 
-USER PROFILE:
-${profileSummary || 'No profile data available'}
+  // 2. Prompt caching — stable parts (system + wardrobe/profile) are cached for 5 min
+  //    Only the variable context (occasion/vibe/weather) is re-processed each call
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4096,
+    system: [
+      {
+        type: 'text',
+        text: 'You are a JSON API. Respond with raw JSON only — no markdown, no code fences, no explanation. Just the JSON object.',
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `You are Fitte, a high-end AI personal stylist.\n\nUSER PROFILE:\n${profileSummary || 'No profile data available'}\n\nWARDROBE ITEMS (with IDs):\n${wardrobeContext || 'No wardrobe items uploaded yet.'}`,
+            cache_control: { type: 'ephemeral' },
+          },
+          {
+            type: 'text',
+            text: `Generate 3 distinct outfit combinations for this context:
 
 CONTEXT:
 ${contextSummary}
 
-WARDROBE ITEMS (with IDs):
-${wardrobeContext || 'No wardrobe items uploaded yet.'}
-
 STYLING RULES:
 - Build each outfit ground-up: shoes → bottoms/dress → top → outerwear → accessories
 - Use wardrobe items (by ID) when they fit the occasion and vibe
-- For any gap in the outfit (missing item type or wardrobe is empty), add a recommended_item with a specific purchase suggestion instead — never skip a layer
+- For any gap, add a recommended_item with a specific purchase suggestion — never skip a layer
 - recommended_items should be realistic, specific, and within the user's budget range
 - Apply color theory and note if monochromatic, complementary, or analogous
 - Factor in body type for silhouette choices
@@ -112,19 +133,11 @@ Return this exact JSON structure:
       "color_logic": "monochromatic|complementary|analogous"
     }
   ]
-}`;
-
-  logger.debug('Calling Claude for outfit generation', {
-    userId,
-    occasion: request.occasion,
-    wardrobeSize: items?.length ?? 0,
-  });
-
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    system: 'You are a JSON API. Respond with raw JSON only — no markdown, no code fences, no explanation. Just the JSON object.',
-    messages: [{ role: 'user', content: prompt }],
+}`,
+          },
+        ],
+      },
+    ],
   });
 
   const content = response.content[0];
@@ -140,27 +153,28 @@ Return this exact JSON structure:
     throw new Error('Failed to parse outfit recommendations');
   }
 
-  // 3. Persist to generated_outfits
-  const outfitsToInsert = parsed.outfits.map((o: GeneratedOutfit) => ({
-    user_id: userId,
-    occasion: request.occasion,
-    vibe: request.vibe,
-    item_ids: o.item_ids ?? [],
-    recommended_items: o.recommended_items ?? [],
-    description: o.description,
-    color_logic: o.color_logic,
-    generation_round: request.generation_round,
-  }));
+  // 3. Stream outfits to caller one by one as they're inserted
+  for (const o of parsed.outfits) {
+    const { data: inserted, error: insertError } = await supabase
+      .from('generated_outfits')
+      .insert({
+        user_id: userId,
+        occasion: request.occasion,
+        vibe: request.vibe,
+        item_ids: o.item_ids ?? [],
+        recommended_items: o.recommended_items ?? [],
+        description: o.description,
+        color_logic: o.color_logic,
+        generation_round: request.generation_round,
+      })
+      .select()
+      .single();
 
-  const { data: inserted, error: insertError } = await supabase
-    .from('generated_outfits')
-    .insert(outfitsToInsert)
-    .select();
+    if (insertError) {
+      logger.error('Failed to insert outfit', { userId, error: insertError });
+      continue;
+    }
 
-  if (insertError) {
-    logger.error('Failed to insert outfits', { userId, error: insertError });
-    throw new Error('Failed to save outfits');
+    yield inserted;
   }
-
-  return inserted ?? [];
 }

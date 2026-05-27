@@ -30,9 +30,6 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "ACCESS_FINE_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
         "ACCESS_FINE_LOCATION"
       ]
     },
@@ -40,10 +37,9 @@
       "expo-router",
       "expo-secure-store",
       [
-        "expo-notifications",
+        "expo-location",
         {
-          "icon": "./assets/images/notification-icon.png",
-          "color": "#000000"
+          "locationWhenInUsePermission": "Fitte uses your location to suggest weather-appropriate outfits."
         }
       ]
     ],
@@ -59,11 +55,10 @@
       }
     },
     "owner": "kosilva93",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "https://u.expo.dev/e9e516cb-a5e9-4156-ac17-e145fd830bd8"
+      "url": "https://u.expo.dev/e9e516cb-a5e9-4156-ac17-e145fd830bd8",
+      "checkAutomatically": "ON_LOAD"
     }
   }
 }

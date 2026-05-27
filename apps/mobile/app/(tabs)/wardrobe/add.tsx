@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
-  TextInput, Alert, ActivityIndicator,
+  TextInput, Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '@/utils/api';
 import type { ItemType, WardrobeItem } from '@/types';
@@ -37,17 +38,27 @@ const COLOR_HEX: Record<string, string> = {
 
 // ─── Upload helper ───────────────────────────────────────────────────────────
 
+async function compressPhoto(uri: string): Promise<string> {
+  const ctx = ImageManipulator.manipulate(uri);
+  ctx.resize({ width: 1024 });
+  const ref = await ctx.renderAsync();
+  const result = await ref.saveAsync({ compress: 0.7, format: SaveFormat.JPEG });
+  return result.uri;
+}
+
 async function uploadPhoto(uri: string): Promise<string> {
+  const compressed = await compressPhoto(uri);
+
   const { uploadUrl, path } = await apiPost<{ uploadUrl: string; path: string }>(
     '/wardrobe/upload-url',
     {}
   );
 
-  const blob = await (await fetch(uri)).blob();
+  const blob = await (await fetch(compressed)).blob();
   const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
     body: blob,
-    headers: { 'Content-Type': blob.type || 'image/jpeg' },
+    headers: { 'Content-Type': 'image/jpeg' },
   });
 
   if (!uploadRes.ok) throw new Error('Photo upload failed');
@@ -75,7 +86,14 @@ export default function AddItemScreen() {
   async function pickFromLibrary() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Allow photo access to add wardrobe items.');
+      Alert.alert(
+        'Permission required',
+        'Allow photo access to add wardrobe items.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -90,7 +108,14 @@ export default function AddItemScreen() {
   async function takePhoto() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Allow camera access to take photos.');
+      Alert.alert(
+        'Permission required',
+        'Allow camera access to take photos.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
       return;
     }
     const result = await ImagePicker.launchCameraAsync({

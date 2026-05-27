@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { AppError } from '../middleware/errorHandler';
-import { generateOutfit } from '../services/outfitService';
+import { generateOutfitStream } from '../services/outfitService';
 import { visualizeOutfit } from '../services/visualizeService';
 
 const router = Router();
@@ -21,33 +21,57 @@ const generateSchema = z.object({
   generation_round: z.number().int().min(1).default(1),
 });
 
-// POST /outfits/generate
-router.post('/generate', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Enforce Free tier weekly limit
-    if (req.userTier === 'free') {
-      const weekStart = getWeekStart();
-      const { data: counter } = await supabase
-        .from('outfit_usage_counters')
-        .select('outfit_count')
-        .eq('user_id', req.userId)
-        .eq('week_start', weekStart)
-        .single();
+// POST /outfits/generate — SSE stream, emits each outfit as it's ready
+router.post('/generate', async (req: Request, res: Response) => {
+  // Enforce Free tier weekly limit
+  if (req.userTier === 'free') {
+    const weekStart = getWeekStart();
+    const { data: counter } = await supabase
+      .from('outfit_usage_counters')
+      .select('outfit_count')
+      .eq('user_id', req.userId)
+      .eq('week_start', weekStart)
+      .single();
 
-      if ((counter?.outfit_count ?? 0) >= FREE_WEEKLY_OUTFIT_LIMIT) {
-        throw new AppError(403, 'Weekly outfit limit reached. Upgrade to Pro for unlimited outfits.');
-      }
+    if ((counter?.outfit_count ?? 0) >= FREE_WEEKLY_OUTFIT_LIMIT) {
+      res.status(403).json({ error: 'Weekly outfit limit reached. Upgrade to Pro for unlimited outfits.' });
+      return;
+    }
+  }
+
+  let body: z.infer<typeof generateSchema>;
+  try {
+    body = generateSchema.parse(req.body);
+  } catch {
+    res.status(400).json({ error: 'Invalid request body' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const insertedIds: string[] = [];
+
+  try {
+    for await (const outfit of generateOutfitStream(req.userId, body)) {
+      insertedIds.push(outfit.id);
+      res.write(`data: ${JSON.stringify(outfit)}\n\n`);
     }
 
-    const body = generateSchema.parse(req.body);
-    const outfits = await generateOutfit(req.userId, body);
-
-    // Increment usage counter
     await incrementUsageCounter(req.userId);
+    res.write('data: [DONE]\n\n');
+    res.end();
 
-    res.json({ outfits });
+    // Pre-generate visualizations silently after response is sent
+    for (const id of insertedIds) {
+      visualizeOutfit(id, req.userId).catch(() => {});
+    }
   } catch (err) {
-    next(err);
+    const message = err instanceof AppError ? err.message : 'Failed to generate outfits';
+    res.write(`data: {"error":"${message}"}\n\n`);
+    res.end();
   }
 });
 
@@ -105,7 +129,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
 function getWeekStart(): string {
   const now = new Date();
   const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(now.setDate(diff));
   return monday.toISOString().split('T')[0];
 }

@@ -142,4 +142,31 @@ router.delete('/items/:id', async (req: Request, res: Response, next: NextFuncti
   }
 });
 
+// POST /wardrobe/items/:id/retry — re-trigger classification for a failed item
+router.post('/items/:id/retry', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { data: item, error } = await supabase
+      .from('wardrobe_items')
+      .select('id, photo_url, classification_status')
+      .eq('id', req.params.id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (error || !item) throw new AppError(404, 'Item not found');
+    if (item.classification_status === 'processing') throw new AppError(409, 'Classification already in progress');
+    if (!item.photo_url) throw new AppError(400, 'No photo to classify');
+
+    await supabase
+      .from('wardrobe_items')
+      .update({ classification_status: 'pending' })
+      .eq('id', item.id);
+
+    classifyWardrobeItem(item.id, item.photo_url).catch(() => {});
+
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

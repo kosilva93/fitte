@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { apiGet, apiPost } from '@/utils/api';
@@ -55,9 +55,10 @@ export default function GapsScreen() {
         <TouchableOpacity
           onPress={() => analyze()}
           disabled={isPending}
-          className="bg-white rounded-xl px-4 py-2"
+          className={`rounded-xl px-4 py-2 flex-row items-center gap-2 ${isPending ? 'bg-gray-700' : 'bg-white'}`}
         >
-          <Text className="text-black text-sm font-semibold">
+          {isPending && <ActivityIndicator size="small" color="#fff" />}
+          <Text className={`text-sm font-semibold ${isPending ? 'text-gray-400' : 'text-black'}`}>
             {isPending ? 'Analysing...' : analysis ? 'Re-analyse' : 'Analyse'}
           </Text>
         </TouchableOpacity>

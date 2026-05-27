@@ -3,6 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/authStore';
+import { supabase } from '@/utils/supabase';
 
 export default function Index() {
   const { session } = useAuthStore();
@@ -13,8 +14,23 @@ export default function Index() {
 
       if (!onboardingDone) {
         router.replace('/onboarding');
-      } else if (!session) {
+        return;
+      }
+
+      if (!session) {
         router.replace('/(auth)/sign-in');
+        return;
+      }
+
+      // Check if profile setup is complete for this user
+      const { data } = await supabase
+        .from('users')
+        .select('profile_complete')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!data?.profile_complete) {
+        router.replace('/profile-setup' as never);
       } else {
         router.replace('/(tabs)/wardrobe');
       }

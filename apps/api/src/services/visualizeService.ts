@@ -7,12 +7,15 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export async function visualizeOutfit(outfitId: string, userId: string): Promise<string> {
   const { data: outfit, error } = await supabase
     .from('generated_outfits')
-    .select('description, recommended_items, color_logic, occasion, vibe')
+    .select('description, recommended_items, color_logic, occasion, vibe, image_url')
     .eq('id', outfitId)
     .eq('user_id', userId)
     .single();
 
   if (error || !outfit) throw new Error('Outfit not found');
+
+  // Already visualized — return cached image
+  if (outfit.image_url) return outfit.image_url;
 
   const recommendedText = outfit.recommended_items?.length
     ? `Recommended additions: ${outfit.recommended_items.map((r: { type: string; description: string }) => r.description).join(', ')}.`

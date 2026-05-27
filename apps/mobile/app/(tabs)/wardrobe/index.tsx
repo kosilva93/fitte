@@ -1,7 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiDelete } from '@/utils/api';
+import { apiGet, apiDelete, apiPost } from '@/utils/api';
 import type { WardrobeItem } from '@/types';
 
 export default function WardrobeScreen() {
@@ -22,6 +22,11 @@ export default function WardrobeScreen() {
 
   const { mutate: deleteItem } = useMutation({
     mutationFn: (id: string) => apiDelete(`/wardrobe/items/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['wardrobe'] }),
+  });
+
+  const { mutate: retryItem } = useMutation({
+    mutationFn: (id: string) => apiPost(`/wardrobe/items/${id}/retry`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['wardrobe'] }),
   });
 
@@ -99,12 +104,13 @@ export default function WardrobeScreen() {
                 </View>
               )}
               {item.classification_status === 'failed' && (
-                <View
-                  className="absolute bottom-0 left-0 right-0 px-2 py-1"
-                  style={{ backgroundColor: 'rgba(127,29,29,0.8)' }}
+                <TouchableOpacity
+                  onPress={() => retryItem(item.id)}
+                  className="absolute bottom-0 left-0 right-0 px-2 py-1.5 items-center"
+                  style={{ backgroundColor: 'rgba(127,29,29,0.85)' }}
                 >
-                  <Text className="text-red-300 text-xs">Analysis failed</Text>
-                </View>
+                  <Text className="text-red-300 text-xs">Analysis failed · Tap to retry</Text>
+                </TouchableOpacity>
               )}
             </TouchableOpacity>
           )}

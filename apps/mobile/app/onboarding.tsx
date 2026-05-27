@@ -69,7 +69,7 @@ export default function OnboardingScreen() {
   const isLast = activeIndex === SLIDES.length - 1;
 
   return (
-    <View className="flex-1 bg-black">
+    <View style={{ flex: 1, backgroundColor: '#000' }} className="flex-1 bg-black">
       <FlatList
         ref={flatListRef}
         data={SLIDES}
@@ -79,11 +79,12 @@ export default function OnboardingScreen() {
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        style={{ flex: 1 }}
         renderItem={({ item }) => (
-          <View style={{ width }} className="flex-1 items-center justify-center px-8">
-            <Text style={{ fontSize: 72 }} className="mb-8">{item.icon}</Text>
-            <Text className="text-white text-3xl font-bold text-center mb-4">{item.title}</Text>
-            <Text className="text-gray-400 text-base text-center leading-relaxed">
+          <View style={{ width, flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }} className="flex-1 items-center justify-center px-8">
+            <Text style={{ fontSize: 72, marginBottom: 32 }}>{item.icon}</Text>
+            <Text style={{ color: '#fff', fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 16 }} className="text-white text-3xl font-bold text-center mb-4">{item.title}</Text>
+            <Text style={{ color: '#9ca3af', fontSize: 16, textAlign: 'center', lineHeight: 24 }} className="text-gray-400 text-base text-center leading-relaxed">
               {item.description}
             </Text>
           </View>
@@ -91,7 +92,7 @@ export default function OnboardingScreen() {
       />
 
       {/* Dots */}
-      <View className="flex-row justify-center mb-8 gap-2">
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 32, gap: 8 }} className="flex-row justify-center mb-8 gap-2">
         {SLIDES.map((_, i) => (
           <View
             key={i}
@@ -105,20 +106,20 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
-      {/* Buttons */}
-      <View className="px-6 pb-12 gap-3">
+      <View style={{ paddingHorizontal: 24, paddingBottom: 48, gap: 12 }} className="px-6 pb-12 gap-3">
         <TouchableOpacity
           onPress={handleNext}
+          style={{ backgroundColor: '#fff', borderRadius: 12, paddingVertical: 16 }}
           className="bg-white rounded-xl py-4"
         >
-          <Text className="text-black text-center font-semibold text-base">
+          <Text style={{ color: '#000', textAlign: 'center', fontWeight: '600', fontSize: 16 }} className="text-black text-center font-semibold text-base">
             {isLast ? 'Get Started' : 'Next'}
           </Text>
         </TouchableOpacity>
 
         {!isLast && (
           <TouchableOpacity onPress={handleGetStarted}>
-            <Text className="text-gray-500 text-center text-sm">Skip</Text>
+            <Text style={{ color: '#6b7280', textAlign: 'center', fontSize: 14 }} className="text-gray-500 text-center text-sm">Skip</Text>
           </TouchableOpacity>
         )}
       </View>
