@@ -36,8 +36,8 @@ export async function* generateOutfitStream(
   userId: string,
   request: OutfitRequest
 ) {
-  // 1. Parallel fetch — wardrobe + profile at the same time
-  const [{ data: items }, { data: profile }] = await Promise.all([
+  // 1. Parallel fetch — wardrobe + profile + feedback history at the same time
+  const [{ data: items }, { data: profile }, { data: feedbackHistory }] = await Promise.all([
     supabase
       .from('wardrobe_items')
       .select('id, item_type, colors, silhouette, fabric, label, tags, occasion_tags, season')
@@ -48,9 +48,19 @@ export async function* generateOutfitStream(
       .select('age, gender, body_type, aesthetics, preferred_brands, staple_items, budget_min, budget_max, city')
       .eq('id', userId)
       .single(),
+    supabase
+      .from('generated_outfits')
+      .select('description, feedback')
+      .eq('user_id', userId)
+      .in('feedback', ['loved', 'disliked'])
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
 
   const wardrobeContext = JSON.stringify(items ?? [], null, 2);
+
+  const loved = feedbackHistory?.filter(o => o.feedback === 'loved').map(o => o.description) ?? [];
+  const disliked = feedbackHistory?.filter(o => o.feedback === 'disliked').map(o => o.description) ?? [];
 
   const profileSummary = [
     profile?.age ? `Age: ${profile.age}` : null,
@@ -60,6 +70,8 @@ export async function* generateOutfitStream(
     profile?.preferred_brands?.length ? `Preferred brands: ${profile.preferred_brands.join(', ')}` : null,
     profile?.staple_items?.length ? `Wardrobe staples: ${profile.staple_items.join(', ')}` : null,
     profile?.city ? `Location: ${profile.city}` : null,
+    loved.length ? `Previously loved outfits (lean into these styles):\n${loved.map(d => `- ${d}`).join('\n')}` : null,
+    disliked.length ? `Previously disliked outfits (avoid these styles):\n${disliked.map(d => `- ${d}`).join('\n')}` : null,
   ].filter(Boolean).join('\n');
 
   const contextSummary = [

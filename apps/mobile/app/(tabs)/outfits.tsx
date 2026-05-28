@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert, Modal, SafeAreaView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch, apiStream } from '@/utils/api';
@@ -60,6 +60,7 @@ function OutfitCard({
   onDelete,
   onFeedback,
   onVisualize,
+  onFullscreen,
   isVisualizing,
 }: {
   outfit: GeneratedOutfit;
@@ -67,16 +68,19 @@ function OutfitCard({
   onDelete?: (id: string) => void;
   onFeedback?: (id: string, feedback: 'loved' | 'disliked') => void;
   onVisualize?: (id: string) => void;
+  onFullscreen?: (url: string) => void;
   isVisualizing?: boolean;
 }) {
   return (
     <View className="bg-gray-900 rounded-xl overflow-hidden mb-3">
       {outfit.image_url ? (
-        <Image
-          source={{ uri: outfit.image_url }}
-          style={{ width: '100%', height: 300 }}
-          resizeMode="cover"
-        />
+        <TouchableOpacity onPress={() => onFullscreen?.(outfit.image_url!)} activeOpacity={0.9}>
+          <Image
+            source={{ uri: outfit.image_url }}
+            style={{ width: '100%', height: 300 }}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
       ) : onVisualize ? (
         <TouchableOpacity
           onPress={() => onVisualize(outfit.id)}
@@ -199,6 +203,7 @@ export default function OutfitsScreen() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
   async function generate() {
     setIsGenerating(true);
@@ -419,6 +424,7 @@ export default function OutfitsScreen() {
                   onSave={handleSave}
                   onFeedback={handleFeedback}
                   onVisualize={(id) => visualize(id)}
+                  onFullscreen={setFullscreenImage}
                   isVisualizing={visualizingId === outfit.id}
                 />
               ))}
@@ -451,11 +457,30 @@ export default function OutfitsScreen() {
                 outfit={{ ...outfit, saved: true }}
                 onDelete={handleDelete}
                 onFeedback={handleFeedback}
+                onFullscreen={setFullscreenImage}
               />
             ))
           )}
         </ScrollView>
       )}
+
+      <Modal visible={!!fullscreenImage} transparent animationType="fade" onRequestClose={() => setFullscreenImage(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+          <TouchableOpacity
+            onPress={() => setFullscreenImage(null)}
+            style={{ position: 'absolute', top: 56, right: 20, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, padding: 8 }}
+          >
+            <Text style={{ color: '#fff', fontSize: 16 }}>✕</Text>
+          </TouchableOpacity>
+          {fullscreenImage && (
+            <Image
+              source={{ uri: fullscreenImage }}
+              style={{ flex: 1 }}
+              resizeMode="contain"
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }

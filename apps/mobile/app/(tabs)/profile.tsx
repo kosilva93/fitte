@@ -351,8 +351,15 @@ export default function ProfileScreen() {
         )}
 
         <TouchableOpacity
-          onPress={handleSignOut}
+          onPress={() => router.push('/privacy' as never)}
           className="border border-gray-700 rounded-xl py-4 items-center mt-4"
+        >
+          <Text className="text-gray-500 font-medium text-sm">Privacy Policy</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleSignOut}
+          className="border border-gray-700 rounded-xl py-4 items-center mt-2"
         >
           <Text className="text-gray-500 font-medium text-sm">Sign Out</Text>
         </TouchableOpacity>
