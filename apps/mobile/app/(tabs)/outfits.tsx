@@ -124,7 +124,7 @@ function OutfitCard({
               onPress={() => onSave(outfit.id)}
               className="border border-gray-700 rounded-full px-3 py-1.5"
             >
-              <Text className="text-gray-500 text-xs">Save to lookbook</Text>
+              <Text className="text-gray-500 text-xs">Save</Text>
             </TouchableOpacity>
           )}
           {outfit.saved && !onDelete && (
