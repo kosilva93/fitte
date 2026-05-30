@@ -13,7 +13,8 @@
     "test": "yarn workspaces run test",
     "lint": "yarn workspaces run lint",
     "format": "yarn workspaces run format",
-    "typecheck": "yarn workspaces run typecheck"
+    "typecheck": "yarn workspaces run typecheck",
+    "build": "yarn workspace @fitte/api build"
   },
   "engines": {
     "node": ">=20.0.0",

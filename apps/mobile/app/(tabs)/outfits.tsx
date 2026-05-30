@@ -251,7 +251,10 @@ export default function OutfitsScreen() {
       );
       setVisualizingId(null);
     },
-    onError: () => setVisualizingId(null),
+    onError: (err) => {
+      setVisualizingId(null);
+      Alert.alert('Visualization failed', err instanceof Error ? err.message : 'Something went wrong');
+    },
   });
 
   function handleSave(id: string) {
