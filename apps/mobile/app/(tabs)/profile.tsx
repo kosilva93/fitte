@@ -42,8 +42,9 @@ export default function ProfileScreen() {
   const [saved, setSaved] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['profile'],
+    queryKey: ['profile', user?.id],
     queryFn: () => apiGet<{ profile: ProfileData }>('/profile'),
+    enabled: !!user?.id,
   });
 
   const profile = data?.profile;
@@ -110,6 +111,7 @@ export default function ProfileScreen() {
 
   async function handleSignOut() {
     await supabase.auth.signOut();
+    queryClient.clear();
     signOut();
     router.replace('/(auth)/sign-in');
   }

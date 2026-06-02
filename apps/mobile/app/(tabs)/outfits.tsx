@@ -365,7 +365,9 @@ export default function OutfitsScreen() {
               onChangeText={setOccasion}
               placeholder="e.g. dinner, work meeting, beach day..."
               placeholderTextColor="#6b7280"
-              className="bg-black text-white rounded-xl px-4 py-3 text-sm mb-4"
+              multiline
+              numberOfLines={3}
+              style={{ minHeight: 80, textAlignVertical: 'top', backgroundColor: '#000', color: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, marginBottom: 16 }}
             />
 
             <Text className="text-gray-500 text-xs uppercase mb-2">Vibe *</Text>

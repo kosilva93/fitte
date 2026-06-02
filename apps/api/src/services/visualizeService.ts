@@ -32,9 +32,9 @@ export async function visualizeOutfit(outfitId: string, userId: string): Promise
       num_images: 1,
       num_inference_steps: 4,
     },
-  }) as unknown as { images: { url: string }[] };
+  }) as unknown as { data: { images: { url: string }[] } };
 
-  const imageUrl = result.images?.[0]?.url;
+  const imageUrl = result.data?.images?.[0]?.url;
   if (!imageUrl) throw new Error('No image returned from Fal.ai');
 
   // Fetch and upload to Supabase storage so we control the URL
