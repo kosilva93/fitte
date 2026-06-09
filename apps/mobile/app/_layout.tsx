@@ -1,10 +1,11 @@
+import 'react-native-get-random-values';
+import 'react-native-url-polyfill/auto';
 import '../global.css';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import { supabase } from '@/utils/supabase';
 import { useAuthStore } from '@/store/authStore';
 
@@ -31,23 +32,31 @@ export default function RootLayout() {
   const { setSession, setUserTier } = useAuthStore();
 
   useEffect(() => {
+    let purchases: typeof import('react-native-purchases').default | null = null;
     const rcKey = Platform.OS === 'ios'
       ? (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '')
       : (process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '');
-    if (rcKey) {
+    async function configurePurchases() {
+      if (!rcKey) return;
       try {
-        Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-        Purchases.configure({ apiKey: rcKey });
+        const purchasesModule = await import('react-native-purchases');
+        purchases = purchasesModule.default;
+        purchases.setLogLevel(purchasesModule.LOG_LEVEL.VERBOSE);
+        purchases.configure({ apiKey: rcKey });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) purchases.logIn(session.user.id).catch(() => {});
       } catch {
         // Non-fatal — app works without RevenueCat
       }
     }
 
+    configurePurchases();
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
         syncTier(session.user.id, setUserTier);
-        if (rcKey) Purchases.logIn(session.user.id).catch(() => {});
+        if (purchases) purchases.logIn(session.user.id).catch(() => {});
       }
     });
 
@@ -55,9 +64,9 @@ export default function RootLayout() {
       setSession(session);
       if (session) {
         syncTier(session.user.id, setUserTier);
-        if (rcKey) Purchases.logIn(session.user.id).catch(() => {});
+        if (purchases) purchases.logIn(session.user.id).catch(() => {});
       } else {
-        if (rcKey) Purchases.logOut().catch(() => {});
+        if (purchases) purchases.logOut().catch(() => {});
       }
     });
 

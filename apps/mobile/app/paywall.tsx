@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import Purchases from 'react-native-purchases';
-import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/utils/supabase';
 
@@ -17,6 +15,10 @@ export default function PaywallScreen() {
 
   async function showPaywall() {
     try {
+      const [{ default: Purchases }, { default: RevenueCatUI, PAYWALL_RESULT }] = await Promise.all([
+        import('react-native-purchases'),
+        import('react-native-purchases-ui'),
+      ]);
       const offerings = await Purchases.getOfferings();
       if (!offerings.current || offerings.current.availablePackages.length === 0) {
         router.replace('/(tabs)/wardrobe');
@@ -35,6 +37,7 @@ export default function PaywallScreen() {
 
   async function onSubscribed() {
     try {
+      const { default: Purchases } = await import('react-native-purchases');
       const customerInfo = await Purchases.getCustomerInfo();
       const isActive = typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== 'undefined';
       if (isActive) {

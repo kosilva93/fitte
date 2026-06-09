@@ -1,5 +1,9 @@
+import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // Decision: SecureStore adapter for Supabase session — more secure than AsyncStorage
 const ExpoSecureStoreAdapter = {
@@ -8,9 +12,11 @@ const ExpoSecureStoreAdapter = {
   removeItem: (key: string) => SecureStore.deleteItemAsync(key),
 };
 
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
 export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+  supabaseUrl || 'https://missing-supabase-url.supabase.co',
+  supabaseAnonKey || 'missing-supabase-anon-key',
   {
     auth: {
       storage: ExpoSecureStoreAdapter,
