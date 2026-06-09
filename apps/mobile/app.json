@@ -13,12 +13,16 @@
       "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.fitte.app",
+      "supportsTablet": true,
+      "requiresFullScreen": false,
+      "buildNumber": "3",
+      "bundleIdentifier": "com.fitteai.app",
+      "appleTeamId": "GP5HXC5JDJ",
       "infoPlist": {
         "NSCameraUsageDescription": "Fitte needs camera access to photograph your wardrobe items.",
         "NSPhotoLibraryUsageDescription": "Fitte needs photo library access to import your wardrobe.",
-        "NSLocationWhenInUseUsageDescription": "Fitte uses your location to get weather and find local stores."
+        "NSLocationWhenInUseUsageDescription": "Fitte uses your location to get weather and find local stores.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,7 +34,8 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "com.android.vending.BILLING"
       ]
     },
     "plugins": [

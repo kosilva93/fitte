@@ -1,17 +1,25 @@
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
+  View, Text, ScrollView, TouchableOpacity, TextInput, StatusBar,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/utils/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { apiGet, apiPatch } from '@/utils/api';
 import { router } from 'expo-router';
 import { UserProfile } from '@/types';
+
+const BG = '#060912';
+const SURFACE = '#0B1020';
+const SURFACE_SOFT = '#11162A';
+const BORDER = 'rgba(255,255,255,0.10)';
+const BORDER_PURPLE = 'rgba(139,92,246,0.35)';
+const TEXT = '#F5F6FA';
+const MUTED = '#9CA3AF';
+const PURPLE_BRIGHT = '#A78BFA';
+const PURPLE = '#8B5CF6';
 
 const TIER_LABELS = { free: 'Free', pro: 'Pro', premium: 'Premium' };
 
@@ -38,6 +46,7 @@ type ProfileData = UserProfile & { gender?: string; body_type?: string; aestheti
 export default function ProfileScreen() {
   const { user, userTier, signOut } = useAuthStore();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -50,6 +59,8 @@ export default function ProfileScreen() {
   const profile = data?.profile;
 
   const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
     age: '',
     city: '',
     gender: '',
@@ -63,6 +74,8 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!profile) return;
     setForm({
+      first_name: profile.first_name ?? '',
+      last_name: profile.last_name ?? '',
       age: profile.age?.toString() ?? '',
       city: profile.city ?? '',
       gender: profile.gender ?? '',
@@ -77,6 +90,8 @@ export default function ProfileScreen() {
   const { mutate: saveProfile, isPending } = useMutation({
     mutationFn: () =>
       apiPatch('/profile', {
+        first_name: form.first_name.trim() || undefined,
+        last_name: form.last_name.trim() || undefined,
         age: form.age ? parseInt(form.age) : undefined,
         city: form.city || undefined,
         gender: form.gender || undefined,
@@ -116,7 +131,16 @@ export default function ProfileScreen() {
     router.replace('/(auth)/sign-in');
   }
 
+  async function handleDevReset() {
+    await AsyncStorage.clear();
+    await supabase.auth.signOut();
+    queryClient.clear();
+    signOut();
+    router.replace('/onboarding');
+  }
+
   const readOnlyFields = [
+    { label: 'Name', value: [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || undefined },
     { label: 'Age', value: profile?.age?.toString() },
     { label: 'City', value: profile?.city },
     { label: 'Style identity', value: profile?.gender },
@@ -126,155 +150,219 @@ export default function ProfileScreen() {
     { label: 'Staples', value: profile?.staple_items?.join(', ') },
   ].filter((f) => f.value);
 
+  const INPUT_STYLE = {
+    backgroundColor: SURFACE_SOFT,
+    color: TEXT,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14 as const,
+    borderWidth: 1,
+    borderColor: BORDER,
+  };
+
+  const SECTION_LABEL = {
+    color: MUTED,
+    fontSize: 11 as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  };
+
   return (
-    <ScrollView className="flex-1 bg-black" contentContainerStyle={{ paddingBottom: 48 }}>
-      <View className="px-6 pt-16 pb-4 flex-row items-center justify-between">
-        <Text className="text-white text-2xl font-bold">Profile</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: BG }} contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Header */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: insets.top + 12,
+        paddingBottom: 16,
+      }}>
+        <Text style={{ color: TEXT, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 }}>Profile</Text>
         {!editing && (
           <TouchableOpacity
             onPress={() => setEditing(true)}
-            className="border border-gray-700 rounded-xl px-4 py-2"
+            activeOpacity={0.7}
+            style={{ borderWidth: 1, borderColor: BORDER_PURPLE, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}
           >
-            <Text className="text-gray-400 text-sm">Edit</Text>
+            <Text style={{ color: PURPLE_BRIGHT, fontSize: 13, fontWeight: '500' }}>Edit</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <View className="px-6 space-y-4">
+      <View style={{ paddingHorizontal: 20, gap: 12 }}>
         {saved && (
-          <View className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3">
-            <Text className="text-green-400 text-sm">Profile updated successfully.</Text>
+          <View style={{ backgroundColor: 'rgba(20,83,45,0.25)', borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Text style={{ color: '#4ade80', fontSize: 13 }}>Profile updated successfully.</Text>
           </View>
         )}
 
         {/* Account info */}
-        <View className="bg-gray-900 rounded-xl p-4">
-          <Text className="text-gray-500 text-xs uppercase mb-1">Email</Text>
-          <Text className="text-white">{user?.email}</Text>
+        <View style={{ backgroundColor: SURFACE, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: BORDER }}>
+          <Text style={SECTION_LABEL}>Email</Text>
+          <Text style={{ color: TEXT, fontSize: 14 }}>{user?.email}</Text>
         </View>
 
-        <View className="bg-gray-900 rounded-xl p-4">
-          <Text className="text-gray-500 text-xs uppercase mb-1">Subscription</Text>
-          <Text className="text-white font-semibold">{TIER_LABELS[userTier]}</Text>
+        <View style={{ backgroundColor: SURFACE, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: BORDER }}>
+          <Text style={SECTION_LABEL}>Subscription</Text>
+          <Text style={{ color: TEXT, fontSize: 15, fontWeight: '600' }}>{TIER_LABELS[userTier]}</Text>
           {userTier === 'free' && (
-            <Text className="text-gray-500 text-xs mt-1">
+            <Text style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
               Upgrade to Pro for unlimited outfits and gap analysis.
             </Text>
           )}
         </View>
 
         {isLoading ? (
-          <Text className="text-gray-500 text-sm">Loading profile...</Text>
+          <Text style={{ color: MUTED, fontSize: 14 }}>Loading profile...</Text>
         ) : editing ? (
-          <View className="space-y-6">
+          <View style={{ gap: 20 }}>
+            {/* Name */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={SECTION_LABEL}>First name</Text>
+                <TextInput
+                  value={form.first_name}
+                  onChangeText={(v) => setForm((p) => ({ ...p, first_name: v }))}
+                  placeholder="e.g. Alex"
+                  placeholderTextColor="#6b7280"
+                  style={INPUT_STYLE}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={SECTION_LABEL}>Last name</Text>
+                <TextInput
+                  value={form.last_name}
+                  onChangeText={(v) => setForm((p) => ({ ...p, last_name: v }))}
+                  placeholder="e.g. Smith"
+                  placeholderTextColor="#6b7280"
+                  style={INPUT_STYLE}
+                />
+              </View>
+            </View>
+
             {/* Age & City */}
-            <View className="flex-row gap-3">
-              <View className="flex-1">
-                <Text className="text-gray-500 text-xs mb-1">Age</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={SECTION_LABEL}>Age</Text>
                 <TextInput
                   value={form.age}
                   onChangeText={(v) => setForm((p) => ({ ...p, age: v }))}
                   keyboardType="number-pad"
                   placeholderTextColor="#6b7280"
-                  className="bg-gray-900 text-white rounded-xl px-4 py-3 text-sm"
+                  style={INPUT_STYLE}
                 />
               </View>
-              <View className="flex-1">
-                <Text className="text-gray-500 text-xs mb-1">City</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={SECTION_LABEL}>City</Text>
                 <TextInput
                   value={form.city}
                   onChangeText={(v) => setForm((p) => ({ ...p, city: v }))}
                   placeholder="e.g. London"
                   placeholderTextColor="#6b7280"
-                  className="bg-gray-900 text-white rounded-xl px-4 py-3 text-sm"
+                  style={INPUT_STYLE}
                 />
               </View>
             </View>
 
             {/* Style identity */}
             <View>
-              <Text className="text-gray-500 text-xs mb-2">Style identity</Text>
-              <View className="flex-row gap-2">
-                {GENDER_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    onPress={() => setForm((p) => ({ ...p, gender: opt.value }))}
-                    className={`flex-1 py-2 rounded-xl border items-center ${
-                      form.gender === opt.value
-                        ? 'bg-white border-white'
-                        : 'border-gray-700'
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-medium ${
-                        form.gender === opt.value ? 'text-black' : 'text-gray-400'
-                      }`}
+              <Text style={SECTION_LABEL}>Style identity</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {GENDER_OPTIONS.map((opt) => {
+                  const active = form.gender === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => setForm((p) => ({ ...p, gender: opt.value }))}
+                      activeOpacity={0.8}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        alignItems: 'center',
+                        borderColor: active ? PURPLE : BORDER,
+                        backgroundColor: active ? 'rgba(139,92,246,0.15)' : SURFACE_SOFT,
+                      }}
                     >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: active ? PURPLE_BRIGHT : MUTED }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
             {/* Body type */}
             <View>
-              <Text className="text-gray-500 text-xs mb-2">Body type</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {BODY_TYPE_OPTIONS.map((bt) => (
-                  <TouchableOpacity
-                    key={bt}
-                    onPress={() => setForm((p) => ({ ...p, body_type: bt }))}
-                    className={`px-3 py-2 rounded-xl border capitalize ${
-                      form.body_type === bt
-                        ? 'bg-white border-white'
-                        : 'border-gray-700'
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-medium capitalize ${
-                        form.body_type === bt ? 'text-black' : 'text-gray-400'
-                      }`}
+              <Text style={SECTION_LABEL}>Body type</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {BODY_TYPE_OPTIONS.map((bt) => {
+                  const active = form.body_type === bt;
+                  return (
+                    <TouchableOpacity
+                      key={bt}
+                      onPress={() => setForm((p) => ({ ...p, body_type: bt }))}
+                      activeOpacity={0.8}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: active ? PURPLE : BORDER,
+                        backgroundColor: active ? 'rgba(139,92,246,0.15)' : SURFACE_SOFT,
+                      }}
                     >
-                      {bt}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text style={{ fontSize: 12, fontWeight: '500', textTransform: 'capitalize', color: active ? PURPLE_BRIGHT : MUTED }}>
+                        {bt}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
             {/* Budget */}
             <View>
-              <Text className="text-gray-500 text-xs mb-2">Budget per item</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {BUDGET_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    onPress={() => setForm((p) => ({ ...p, budget_max: opt.value.toString() }))}
-                    className={`px-3 py-2 rounded-xl border ${
-                      form.budget_max === opt.value.toString()
-                        ? 'bg-white border-white'
-                        : 'border-gray-700'
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-medium ${
-                        form.budget_max === opt.value.toString() ? 'text-black' : 'text-gray-400'
-                      }`}
+              <Text style={SECTION_LABEL}>Budget per item</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {BUDGET_OPTIONS.map((opt) => {
+                  const active = form.budget_max === opt.value.toString();
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => setForm((p) => ({ ...p, budget_max: opt.value.toString() }))}
+                      activeOpacity={0.8}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: active ? PURPLE : BORDER,
+                        backgroundColor: active ? 'rgba(139,92,246,0.15)' : SURFACE_SOFT,
+                      }}
                     >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: active ? PURPLE_BRIGHT : MUTED }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
             {/* Aesthetics */}
             <View>
-              <Text className="text-gray-500 text-xs mb-2">
-                Aesthetics <Text className="text-gray-600">(up to 3)</Text>
+              <Text style={SECTION_LABEL}>
+                Aesthetics <Text style={{ color: '#6B7280' }}>(up to 3)</Text>
               </Text>
-              <View className="flex-row flex-wrap gap-2">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {AESTHETIC_OPTIONS.map((a) => {
                   const selected = form.aesthetics.includes(a);
                   const maxed = !selected && form.aesthetics.length >= 3;
@@ -283,13 +371,18 @@ export default function ProfileScreen() {
                       key={a}
                       onPress={() => toggleAesthetic(a)}
                       disabled={maxed}
-                      className={`px-3 py-1.5 rounded-full border ${
-                        selected ? 'bg-white border-white' : 'border-gray-700'
-                      } ${maxed ? 'opacity-40' : ''}`}
+                      activeOpacity={0.8}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 7,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selected ? PURPLE : BORDER,
+                        backgroundColor: selected ? 'rgba(139,92,246,0.15)' : SURFACE_SOFT,
+                        opacity: maxed ? 0.4 : 1,
+                      }}
                     >
-                      <Text
-                        className={`text-xs ${selected ? 'text-black font-medium' : 'text-gray-400'}`}
-                      >
+                      <Text style={{ fontSize: 12, color: selected ? PURPLE_BRIGHT : MUTED, fontWeight: selected ? '600' : '400' }}>
                         {a}
                       </Text>
                     </TouchableOpacity>
@@ -300,53 +393,55 @@ export default function ProfileScreen() {
 
             {/* Brands */}
             <View>
-              <Text className="text-gray-500 text-xs mb-1">Preferred brands</Text>
+              <Text style={SECTION_LABEL}>Preferred brands</Text>
               <TextInput
                 value={form.preferred_brands}
                 onChangeText={(v) => setForm((p) => ({ ...p, preferred_brands: v }))}
                 placeholder="e.g. Zara, Nike, COS"
                 placeholderTextColor="#6b7280"
-                className="bg-gray-900 text-white rounded-xl px-4 py-3 text-sm"
+                style={INPUT_STYLE}
               />
             </View>
 
             {/* Staples */}
             <View>
-              <Text className="text-gray-500 text-xs mb-1">Wardrobe staples</Text>
+              <Text style={SECTION_LABEL}>Wardrobe staples</Text>
               <TextInput
                 value={form.staple_items}
                 onChangeText={(v) => setForm((p) => ({ ...p, staple_items: v }))}
                 placeholder="e.g. white tee, black jeans"
                 placeholderTextColor="#6b7280"
-                className="bg-gray-900 text-white rounded-xl px-4 py-3 text-sm"
+                style={INPUT_STYLE}
               />
             </View>
 
             {/* Actions */}
-            <View className="flex-row gap-3 pt-2">
+            <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity
                 onPress={() => setEditing(false)}
-                className="flex-1 border border-gray-700 rounded-xl py-3 items-center"
+                activeOpacity={0.7}
+                style={{ flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
               >
-                <Text className="text-white text-sm font-medium">Cancel</Text>
+                <Text style={{ color: TEXT, fontSize: 14, fontWeight: '500' }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => saveProfile()}
                 disabled={isPending}
-                className={`flex-1 bg-white rounded-xl py-3 items-center ${isPending ? 'opacity-40' : ''}`}
+                activeOpacity={0.85}
+                style={{ flex: 1, backgroundColor: PURPLE, borderRadius: 14, paddingVertical: 14, alignItems: 'center', opacity: isPending ? 0.5 : 1 }}
               >
-                <Text className="text-black text-sm font-semibold">
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
                   {isPending ? 'Saving...' : 'Save Changes'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <View className="space-y-2">
+          <View style={{ gap: 8 }}>
             {readOnlyFields.map(({ label, value }) => (
-              <View key={label} className="bg-gray-900 rounded-xl px-4 py-3 flex-row justify-between items-center">
-                <Text className="text-gray-500 text-sm">{label}</Text>
-                <Text className="text-white text-sm capitalize flex-shrink ml-4 text-right">{value}</Text>
+              <View key={label} style={{ backgroundColor: SURFACE, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: BORDER }}>
+                <Text style={{ color: MUTED, fontSize: 13 }}>{label}</Text>
+                <Text style={{ color: TEXT, fontSize: 13, textTransform: 'capitalize', flexShrink: 1, marginLeft: 16, textAlign: 'right' }}>{value}</Text>
               </View>
             ))}
           </View>
@@ -354,17 +449,29 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           onPress={() => router.push('/privacy' as never)}
-          className="border border-gray-700 rounded-xl py-4 items-center mt-4"
+          activeOpacity={0.7}
+          style={{ backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 }}
         >
-          <Text className="text-gray-500 font-medium text-sm">Privacy Policy</Text>
+          <Text style={{ color: MUTED, fontSize: 14, fontWeight: '500' }}>Privacy Policy</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={handleSignOut}
-          className="border border-gray-700 rounded-xl py-4 items-center mt-2"
+          activeOpacity={0.7}
+          style={{ backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}
         >
-          <Text className="text-gray-500 font-medium text-sm">Sign Out</Text>
+          <Text style={{ color: '#f87171', fontSize: 14, fontWeight: '500' }}>Sign Out</Text>
         </TouchableOpacity>
+
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={handleDevReset}
+            activeOpacity={0.7}
+            style={{ borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)', borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fbbf24', fontSize: 13, fontWeight: '500' }}>⚠ Reset onboarding (dev only)</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );

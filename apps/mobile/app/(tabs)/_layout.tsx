@@ -11,10 +11,10 @@ const PURPLE = '#8B5CF6';
 const MUTED = '#6b7280';
 
 const TAB_ICONS: Record<string, { icon: string; label: string }> = {
-  index:   { icon: '⌂', label: 'Home' },
+  index:   { icon: '🏠', label: 'Home' },
   wardrobe: { icon: '👔', label: 'Wardrobe' },
-  outfits: { icon: '✦', label: 'Outfits' },
-  profile: { icon: '◯', label: 'Profile' },
+  outfits: { icon: '✨', label: 'Outfits' },
+  profile: { icon: '👤', label: 'Profile' },
 };
 
 const VISIBLE_TABS = ['index', 'wardrobe', 'outfits', 'profile'];

@@ -1,8 +1,10 @@
 import '../global.css';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import { supabase } from '@/utils/supabase';
 import { useAuthStore } from '@/store/authStore';
 
@@ -29,14 +31,34 @@ export default function RootLayout() {
   const { setSession, setUserTier } = useAuthStore();
 
   useEffect(() => {
+    const rcKey = Platform.OS === 'ios'
+      ? (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '')
+      : (process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '');
+    if (rcKey) {
+      try {
+        Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+        Purchases.configure({ apiKey: rcKey });
+      } catch {
+        // Non-fatal — app works without RevenueCat
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) syncTier(session.user.id, setUserTier);
+      if (session) {
+        syncTier(session.user.id, setUserTier);
+        if (rcKey) Purchases.logIn(session.user.id).catch(() => {});
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) syncTier(session.user.id, setUserTier);
+      if (session) {
+        syncTier(session.user.id, setUserTier);
+        if (rcKey) Purchases.logIn(session.user.id).catch(() => {});
+      } else {
+        if (rcKey) Purchases.logOut().catch(() => {});
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -48,6 +70,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" />
+          <Stack.Screen name="paywall" />
           <Stack.Screen name="profile-setup" />
           <Stack.Screen name="privacy" />
           <Stack.Screen name="(auth)" />

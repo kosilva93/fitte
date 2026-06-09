@@ -1,9 +1,22 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StatusBar } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/utils/supabase';
+import { apiPatch } from '@/utils/api';
+
+const BG = '#060912';
+const SURFACE = '#0B1020';
+const SURFACE_SOFT = '#11162A';
+const BORDER = 'rgba(255,255,255,0.10)';
+const TEXT = '#F5F6FA';
+const MUTED = '#9CA3AF';
+const PURPLE = '#8B5CF6';
+const GOLD = '#C9A84C';
 
 export default function SignInScreen() {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,9 +34,27 @@ export default function SignInScreen() {
   async function handleSignUp() {
     setLoading(true);
     const { error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      setLoading(false);
+      Alert.alert('Sign up failed', error.message);
+      return;
+    }
+
+    // Save the style preferences collected during onboarding
+    try {
+      const raw = await AsyncStorage.getItem('onboarding_data');
+      const data = raw ? JSON.parse(raw) : {};
+      await apiPatch('/profile', {
+        gender: data.gender || undefined,
+        aesthetics: data.aesthetics?.length ? data.aesthetics : undefined,
+        profile_complete: true,
+      });
+    } catch {
+      // Non-fatal — user can refine their profile later
+    }
+
     setLoading(false);
-    if (error) { Alert.alert('Sign up failed', error.message); return; }
-    router.replace('/profile-setup' as never);
+    router.replace('/paywall');
   }
 
   async function handleResetPassword() {
@@ -35,13 +66,32 @@ export default function SignInScreen() {
     setResetSent(true);
   }
 
+  const INPUT_STYLE = {
+    backgroundColor: SURFACE_SOFT,
+    color: TEXT,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 15 as const,
+    borderWidth: 1,
+    borderColor: BORDER,
+    marginBottom: 12,
+  };
+
   return (
-    <View className="flex-1 bg-black justify-center px-6">
-      <Text className="text-white text-4xl font-bold mb-2">Fitte</Text>
-      <Text className="text-gray-400 text-base mb-10">Your AI personal stylist</Text>
+    <View style={{ flex: 1, backgroundColor: BG, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: insets.bottom }}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Logo */}
+      <View style={{ marginBottom: 40 }}>
+        <Text style={{ color: TEXT, fontSize: 42, fontWeight: '700', letterSpacing: -1 }}>
+          Fitte <Text style={{ color: GOLD }}>✦</Text>
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 16, marginTop: 6 }}>Your AI personal stylist</Text>
+      </View>
 
       <TextInput
-        className="bg-gray-900 text-white rounded-xl px-4 py-4 mb-4"
+        style={INPUT_STYLE}
         placeholder="Email"
         placeholderTextColor="#6b7280"
         value={email}
@@ -53,57 +103,60 @@ export default function SignInScreen() {
       {!showReset ? (
         <>
           <TextInput
-            className="bg-gray-900 text-white rounded-xl px-4 py-4 mb-2"
+            style={[INPUT_STYLE, { marginBottom: 4 }]}
             placeholder="Password"
             placeholderTextColor="#6b7280"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
-          <TouchableOpacity onPress={() => setShowReset(true)} className="mb-6 self-end">
-            <Text className="text-gray-500 text-sm">Forgot password?</Text>
+          <TouchableOpacity onPress={() => setShowReset(true)} style={{ alignSelf: 'flex-end', marginBottom: 24 }}>
+            <Text style={{ color: MUTED, fontSize: 13 }}>Forgot password?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="bg-white rounded-xl py-4 mb-3"
+            style={{ backgroundColor: PURPLE, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 12, opacity: loading ? 0.6 : 1 }}
             onPress={handleSignIn}
             disabled={loading}
+            activeOpacity={0.85}
           >
-            <Text className="text-black text-center font-semibold text-base">
+            <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600', fontSize: 15 }}>
               {loading ? 'Signing in...' : 'Sign In'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="border border-gray-700 rounded-xl py-4"
+            style={{ backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 16, alignItems: 'center', opacity: loading ? 0.6 : 1 }}
             onPress={handleSignUp}
             disabled={loading}
+            activeOpacity={0.8}
           >
-            <Text className="text-white text-center font-semibold text-base">Create Account</Text>
+            <Text style={{ color: TEXT, textAlign: 'center', fontWeight: '600', fontSize: 15 }}>Create Account</Text>
           </TouchableOpacity>
         </>
       ) : resetSent ? (
-        <View className="bg-gray-900 rounded-xl p-4 mb-4">
-          <Text className="text-green-400 text-sm text-center">
+        <View style={{ backgroundColor: 'rgba(20,83,45,0.25)', borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)', borderRadius: 14, padding: 16, marginBottom: 12 }}>
+          <Text style={{ color: '#4ade80', fontSize: 14, textAlign: 'center' }}>
             Check your email for a password reset link.
           </Text>
-          <TouchableOpacity onPress={() => { setShowReset(false); setResetSent(false); }} className="mt-3">
-            <Text className="text-gray-400 text-sm text-center">Back to sign in</Text>
+          <TouchableOpacity onPress={() => { setShowReset(false); setResetSent(false); }} style={{ marginTop: 12 }}>
+            <Text style={{ color: MUTED, fontSize: 13, textAlign: 'center' }}>Back to sign in</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
           <TouchableOpacity
-            className="bg-white rounded-xl py-4 mb-3"
+            style={{ backgroundColor: PURPLE, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 12, opacity: loading ? 0.6 : 1 }}
             onPress={handleResetPassword}
             disabled={loading}
+            activeOpacity={0.85}
           >
-            <Text className="text-black text-center font-semibold text-base">
+            <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600', fontSize: 15 }}>
               {loading ? 'Sending...' : 'Send Reset Link'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowReset(false)}>
-            <Text className="text-gray-500 text-sm text-center">Back to sign in</Text>
+            <Text style={{ color: MUTED, fontSize: 13, textAlign: 'center' }}>Back to sign in</Text>
           </TouchableOpacity>
         </>
       )}

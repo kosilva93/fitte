@@ -62,9 +62,15 @@ export async function* generateOutfitStream(
   const loved = feedbackHistory?.filter(o => o.feedback === 'loved').map(o => o.description) ?? [];
   const disliked = feedbackHistory?.filter(o => o.feedback === 'disliked').map(o => o.description) ?? [];
 
+  const genderRule = profile?.gender === 'menswear'
+    ? 'CRITICAL: This user wears MENSWEAR only. Every item — owned or recommended — must be menswear. No womenswear, no feminine cuts, no skirts, no dresses, no feminine accessories.'
+    : profile?.gender === 'womenswear'
+    ? 'CRITICAL: This user wears WOMENSWEAR only. Every item — owned or recommended — must be womenswear.'
+    : 'Style identity: gender-neutral / unisex. Suggest versatile, unisex items only.';
+
   const profileSummary = [
+    genderRule,
     profile?.age ? `Age: ${profile.age}` : null,
-    profile?.gender ? `Style identity: ${profile.gender}` : 'Style identity: gender-neutral / unisex — do not assume gender',
     profile?.body_type ? `Body type: ${profile.body_type}` : null,
     profile?.aesthetics?.length ? `Aesthetic preferences: ${profile.aesthetics.join(', ')}` : null,
     profile?.preferred_brands?.length ? `Preferred brands: ${profile.preferred_brands.join(', ')}` : null,
@@ -118,6 +124,7 @@ CONTEXT:
 ${contextSummary}
 
 STYLING RULES:
+- Strictly respect the gender rule at the top of the user profile — never suggest items from the wrong gender category
 - Build each outfit ground-up: shoes → bottoms/dress → top → outerwear → accessories
 - Use wardrobe items (by ID) when they fit the occasion and vibe
 - For any gap, add a recommended_item with a specific purchase suggestion — never skip a layer

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
-  TextInput, Alert, ActivityIndicator, Linking,
+  TextInput, Alert, ActivityIndicator, Linking, StatusBar, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,7 +10,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '@/utils/api';
 import type { ItemType, WardrobeItem } from '@/types';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+const BG = '#060912';
+const SURFACE = '#0B1020';
+const SURFACE_SOFT = '#11162A';
+const BORDER = 'rgba(255,255,255,0.10)';
+const TEXT = '#F5F6FA';
+const MUTED = '#9CA3AF';
+const PURPLE = '#8B5CF6';
 
 const ITEM_TYPES: { value: ItemType; emoji: string; label: string }[] = [
   { value: 'top', emoji: '👕', label: 'Top' },
@@ -36,8 +42,6 @@ const COLOR_HEX: Record<string, string> = {
   cream: '#FFFDD0',
 };
 
-// ─── Upload helper ───────────────────────────────────────────────────────────
-
 async function compressPhoto(uri: string): Promise<string> {
   const ctx = ImageManipulator.manipulate(uri);
   ctx.resize({ width: 1024 });
@@ -48,24 +52,16 @@ async function compressPhoto(uri: string): Promise<string> {
 
 async function uploadPhoto(uri: string): Promise<string> {
   const compressed = await compressPhoto(uri);
-
-  const { uploadUrl, path } = await apiPost<{ uploadUrl: string; path: string }>(
-    '/wardrobe/upload-url',
-    {}
-  );
-
+  const { uploadUrl, path } = await apiPost<{ uploadUrl: string; path: string }>('/wardrobe/upload-url', {});
   const blob = await (await fetch(compressed)).blob();
   const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
     body: blob,
     headers: { 'Content-Type': 'image/jpeg' },
   });
-
   if (!uploadRes.ok) throw new Error('Photo upload failed');
   return path;
 }
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function AddItemScreen() {
   const router = useRouter();
@@ -78,22 +74,16 @@ export default function AddItemScreen() {
   const [brand, setBrand] = useState('');
 
   function toggleColor(c: string) {
-    setColors((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
-    );
+    setColors((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
   }
 
   async function pickFromLibrary() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
-        'Permission required',
-        'Allow photo access to add wardrobe items.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-        ]
-      );
+      Alert.alert('Permission required', 'Allow photo access to add wardrobe items.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -108,21 +98,13 @@ export default function AddItemScreen() {
   async function takePhoto() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
-        'Permission required',
-        'Allow camera access to take photos.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-        ]
-      );
+      Alert.alert('Permission required', 'Allow camera access to take photos.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8, allowsEditing: true, aspect: [1, 1] });
     if (!result.canceled) setPhotoUri(result.assets[0].uri);
   }
 
@@ -130,7 +112,6 @@ export default function AddItemScreen() {
     mutationFn: async () => {
       let photoPath: string | undefined;
       if (photoUri) photoPath = await uploadPhoto(photoUri);
-
       return apiPost<{ item: WardrobeItem }>('/wardrobe/items', {
         item_type: itemType,
         label: label.trim() || undefined,
@@ -139,18 +120,18 @@ export default function AddItemScreen() {
         photo_path: photoPath,
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['wardrobe'] });
+      // No photo — generate an AI product image in the background
+      if (!photoUri) {
+        apiPost(`/wardrobe/items/${data.item.id}/visualize`, {}).catch(() => {});
+      }
       router.back();
     },
     onError: (err) => {
       const message = err instanceof Error ? err.message : 'Failed to add item';
       if (message.includes('Free tier limit')) {
-        Alert.alert(
-          'Wardrobe limit reached',
-          'Free accounts can store up to 10 items. Upgrade to Pro for unlimited items.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Wardrobe limit reached', 'Free accounts can store up to 10 items. Upgrade to Pro for unlimited items.', [{ text: 'OK' }]);
       } else {
         Alert.alert('Error', message);
       }
@@ -159,116 +140,152 @@ export default function AddItemScreen() {
 
   const isValid = itemType && colors.length > 0;
 
+  const LABEL_STYLE = { color: MUTED, fontSize: 11, textTransform: 'uppercase' as const, letterSpacing: 1.2, marginBottom: 12 };
+  const INPUT_STYLE = { backgroundColor: SURFACE_SOFT, color: TEXT, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, borderWidth: 1, borderColor: BORDER };
+
   return (
-    <ScrollView className="flex-1 bg-black" contentContainerStyle={{ padding: 24, paddingBottom: 60 }}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <ScrollView style={{ flex: 1, backgroundColor: BG }} contentContainerStyle={{ padding: 20, paddingBottom: 150 }} keyboardShouldPersistTaps="handled">
+      <StatusBar barStyle="light-content" />
 
       {/* Photo picker */}
-      <Text className="text-gray-500 text-xs uppercase tracking-widest mb-3">Photo (optional)</Text>
+      <Text style={LABEL_STYLE}>Photo (optional)</Text>
       {photoUri ? (
-        <View className="mb-6">
-          <Image source={{ uri: photoUri }} className="w-full aspect-square rounded-2xl" resizeMode="cover" />
+        <View style={{ marginBottom: 24 }}>
+          <Image source={{ uri: photoUri }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} resizeMode="cover" />
           <TouchableOpacity
             onPress={() => setPhotoUri(null)}
-            className="mt-2 self-start border border-gray-700 px-3 py-1.5 rounded-full"
+            activeOpacity={0.7}
+            style={{ marginTop: 10, alignSelf: 'flex-start', borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 }}
           >
-            <Text className="text-gray-400 text-xs">Remove photo</Text>
+            <Text style={{ color: MUTED, fontSize: 12 }}>Remove photo</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <View className="flex-row gap-3 mb-6">
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
           <TouchableOpacity
             onPress={takePhoto}
-            className="flex-1 bg-gray-900 rounded-2xl py-5 items-center border border-gray-800"
+            activeOpacity={0.8}
+            style={{ flex: 1, backgroundColor: SURFACE, borderRadius: 20, paddingVertical: 20, alignItems: 'center', borderWidth: 1, borderColor: BORDER }}
           >
-            <Text className="text-2xl mb-1">📷</Text>
-            <Text className="text-white text-sm font-medium">Take Photo</Text>
+            <Text style={{ fontSize: 24, marginBottom: 6 }}>📷</Text>
+            <Text style={{ color: TEXT, fontSize: 13, fontWeight: '500' }}>Take Photo</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={pickFromLibrary}
-            className="flex-1 bg-gray-900 rounded-2xl py-5 items-center border border-gray-800"
+            activeOpacity={0.8}
+            style={{ flex: 1, backgroundColor: SURFACE, borderRadius: 20, paddingVertical: 20, alignItems: 'center', borderWidth: 1, borderColor: BORDER }}
           >
-            <Text className="text-2xl mb-1">🖼️</Text>
-            <Text className="text-white text-sm font-medium">From Library</Text>
+            <Text style={{ fontSize: 24, marginBottom: 6 }}>🖼️</Text>
+            <Text style={{ color: TEXT, fontSize: 13, fontWeight: '500' }}>From Library</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Item type */}
-      <Text className="text-gray-500 text-xs uppercase tracking-widest mb-3">
-        Type <Text className="text-red-400">*</Text>
+      <Text style={LABEL_STYLE}>
+        Type <Text style={{ color: '#f87171' }}>*</Text>
       </Text>
-      <View className="flex-row flex-wrap gap-2 mb-6">
-        {ITEM_TYPES.map((t) => (
-          <TouchableOpacity
-            key={t.value}
-            onPress={() => setItemType(t.value)}
-            className={`items-center px-4 py-3 rounded-xl border ${
-              itemType === t.value ? 'bg-white border-white' : 'bg-transparent border-gray-800'
-            }`}
-          >
-            <Text className="text-xl">{t.emoji}</Text>
-            <Text className={`text-xs mt-1 ${itemType === t.value ? 'text-black' : 'text-gray-400'}`}>
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+        {ITEM_TYPES.map((t) => {
+          const active = itemType === t.value;
+          return (
+            <TouchableOpacity
+              key={t.value}
+              onPress={() => setItemType(t.value)}
+              activeOpacity={0.8}
+              style={{
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: active ? PURPLE : BORDER,
+                backgroundColor: active ? 'rgba(139,92,246,0.15)' : SURFACE,
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
+              <Text style={{ fontSize: 11, marginTop: 4, color: active ? '#A78BFA' : MUTED, fontWeight: active ? '600' : '400' }}>
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Colors */}
-      <Text className="text-gray-500 text-xs uppercase tracking-widest mb-3">
-        Color(s) <Text className="text-red-400">*</Text>
+      <Text style={LABEL_STYLE}>
+        Color(s) <Text style={{ color: '#f87171' }}>*</Text>
       </Text>
-      <View className="flex-row flex-wrap gap-2 mb-6">
-        {COLOR_OPTIONS.map((c) => (
-          <TouchableOpacity
-            key={c}
-            onPress={() => toggleColor(c)}
-            className={`flex-row items-center gap-2 px-3 py-2 rounded-full border ${
-              colors.includes(c) ? 'bg-white border-white' : 'border-gray-800'
-            }`}
-          >
-            <View
-              className="w-3 h-3 rounded-full border border-gray-600"
-              style={{ backgroundColor: COLOR_HEX[c] ?? c }}
-            />
-            <Text className={`text-xs capitalize ${colors.includes(c) ? 'text-black' : 'text-gray-400'}`}>
-              {c}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+        {COLOR_OPTIONS.map((c) => {
+          const active = colors.includes(c);
+          return (
+            <TouchableOpacity
+              key={c}
+              onPress={() => toggleColor(c)}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: active ? PURPLE : BORDER,
+                backgroundColor: active ? 'rgba(139,92,246,0.15)' : SURFACE,
+              }}
+            >
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLOR_HEX[c] ?? c, borderWidth: c === 'white' ? 1 : 0, borderColor: 'rgba(255,255,255,0.2)' }} />
+              <Text style={{ fontSize: 11, textTransform: 'capitalize', color: active ? '#A78BFA' : MUTED, fontWeight: active ? '600' : '400' }}>
+                {c}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Label & Brand */}
-      <Text className="text-gray-500 text-xs uppercase tracking-widest mb-3">Details</Text>
+      {/* Details */}
+      <Text style={[LABEL_STYLE, { marginBottom: 12 }]}>Details</Text>
       <TextInput
         placeholder="Name / Label (e.g. White Oxford Shirt)"
         placeholderTextColor="#6b7280"
         value={label}
         onChangeText={setLabel}
-        className="bg-gray-900 text-white rounded-xl px-4 py-3 text-sm mb-3"
+        style={[INPUT_STYLE, { marginBottom: 10 }]}
       />
       <TextInput
         placeholder="Brand (e.g. Zara, Nike)"
         placeholderTextColor="#6b7280"
         value={brand}
         onChangeText={setBrand}
-        className="bg-gray-900 text-white rounded-xl px-4 py-3 text-sm mb-8"
+        style={[INPUT_STYLE, { marginBottom: 32 }]}
       />
 
       {/* Submit */}
       <TouchableOpacity
         onPress={() => addItem()}
         disabled={!isValid || isPending}
-        className={`py-4 rounded-2xl items-center ${isValid && !isPending ? 'bg-white' : 'bg-gray-800'}`}
+        activeOpacity={0.85}
+        style={{
+          paddingVertical: 16,
+          borderRadius: 16,
+          alignItems: 'center',
+          backgroundColor: isValid && !isPending ? PURPLE : SURFACE,
+          borderWidth: isValid ? 0 : 1,
+          borderColor: BORDER,
+        }}
       >
         {isPending ? (
-          <ActivityIndicator color="#000" />
+          <ActivityIndicator color="#fff" />
         ) : (
-          <Text className={`font-semibold text-base ${isValid ? 'text-black' : 'text-gray-600'}`}>
+          <Text style={{ fontWeight: '600', fontSize: 15, color: isValid ? '#fff' : MUTED }}>
             Add to Wardrobe
           </Text>
         )}
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
