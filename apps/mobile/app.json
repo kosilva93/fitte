@@ -14,7 +14,6 @@
     },
     "ios": {
       "supportsTablet": true,
-      "requiresFullScreen": false,
       "buildNumber": "3",
       "bundleIdentifier": "com.fitteai.app",
       "appleTeamId": "GP5HXC5JDJ",
