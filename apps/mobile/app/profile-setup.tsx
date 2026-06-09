@@ -23,6 +23,8 @@ const BUDGET_OPTIONS = [
 ];
 
 export default function ProfileSetupScreen() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [gender, setGender] = useState('');
   const [bodyType, setBodyType] = useState('');
   const [aesthetics, setAesthetics] = useState<string[]>([]);
@@ -47,6 +49,8 @@ export default function ProfileSetupScreen() {
     setLoading(true);
     try {
       await apiPatch('/profile', {
+        first_name: firstName.trim() || undefined,
+        last_name: lastName.trim() || undefined,
         gender,
         body_type: bodyType || undefined,
         aesthetics,
@@ -85,6 +89,34 @@ export default function ProfileSetupScreen() {
       </View>
 
       <View style={{ paddingHorizontal: 24, paddingTop: 32, gap: 28 }}>
+
+        {/* Name */}
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#6b7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+              First name
+            </Text>
+            <TextInput
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="e.g. Alex"
+              placeholderTextColor="#4b5563"
+              style={{ backgroundColor: '#111827', color: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 14 }}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#6b7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+              Last name
+            </Text>
+            <TextInput
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="e.g. Smith"
+              placeholderTextColor="#4b5563"
+              style={{ backgroundColor: '#111827', color: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 14 }}
+            />
+          </View>
+        </View>
 
         {/* Style identity — required */}
         <View>

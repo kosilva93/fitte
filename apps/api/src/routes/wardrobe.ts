@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { classifyWardrobeItem } from '../services/classificationService';
+import { visualizeWardrobeItem } from '../services/visualizeService';
 
 const router = Router();
 
@@ -137,6 +138,16 @@ router.delete('/items/:id', async (req: Request, res: Response, next: NextFuncti
     if (error) throw new AppError(500, 'Failed to delete item');
     if (!data || data.length === 0) throw new AppError(404, 'Item not found');
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /wardrobe/items/:id/visualize — generate an AI product image for items without photos
+router.post('/items/:id/visualize', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const photoUrl = await visualizeWardrobeItem(String(req.params.id), req.userId);
+    res.json({ photo_url: photoUrl });
   } catch (err) {
     next(err);
   }

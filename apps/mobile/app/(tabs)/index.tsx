@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
 import { apiGet } from '@/utils/api';
-import type { WardrobeItem, GeneratedOutfit } from '@/types';
+import type { WardrobeItem, GeneratedOutfit, UserProfile } from '@/types';
 
 const BG = '#060912';
 const SURFACE = '#0B1020';
@@ -23,12 +23,7 @@ const OCCASIONS = [
   { id: 'date', label: 'Date night', sub: 'Confident & stylish' },
 ];
 
-const QUICK_ACTIONS = [
-  { id: 'add', label: 'Add new item', icon: '＋', route: '/wardrobe/add' },
-  { id: 'outfits', label: 'Get outfit ideas', icon: '✦', route: '/(tabs)/outfits' },
-  { id: 'lookbook', label: 'My lookbook', icon: '♡', route: '/(tabs)/outfits' },
-  { id: 'gaps', label: 'Gap analysis', icon: '◈', route: '/(tabs)/gaps' },
-];
+type ProfileData = UserProfile & { gender?: string; body_type?: string; aesthetics?: string[] };
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -41,7 +36,12 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
-  const firstName = user?.email?.split('@')[0] ?? 'there';
+
+  const { data: profileData } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: () => apiGet<{ profile: ProfileData }>('/profile'),
+    enabled: !!user?.id,
+  });
 
   const { data: wardrobeData } = useQuery({
     queryKey: ['wardrobe'],
@@ -53,25 +53,21 @@ export default function HomeScreen() {
     queryFn: () => apiGet<{ outfits: GeneratedOutfit[] }>('/outfits'),
   });
 
+  const profile = profileData?.profile;
+  const firstName = profile?.first_name ?? user?.email?.split('@')[0] ?? 'there';
   const itemCount = wardrobeData?.items?.length ?? 0;
-  const recentOutfits = (lookbookData?.outfits ?? []).slice(0, 6);
+  const recentOutfits = (lookbookData?.outfits ?? []).filter((o) => o.saved).slice(0, 6);
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="light-content" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 110 }}
+        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 150 }}
       >
         {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 28 }}>
+        <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
           <Text style={{ color: TEXT, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 }}>Fitte</Text>
-          <TouchableOpacity
-            style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: 'center', justifyContent: 'center' }}
-            activeOpacity={0.7}
-          >
-            <Text style={{ fontSize: 17 }}>🔔</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Greeting */}
@@ -118,7 +114,7 @@ export default function HomeScreen() {
         {/* Occasions */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 14 }}>
           <Text style={{ color: TEXT, fontSize: 17, fontWeight: '600' }}>What's the occasion?</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/outfits')}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/outfits' as any)}>
             <Text style={{ color: PURPLE_BRIGHT, fontSize: 13 }}>Style me →</Text>
           </TouchableOpacity>
         </View>
@@ -130,7 +126,7 @@ export default function HomeScreen() {
           {OCCASIONS.map((occ) => (
             <TouchableOpacity
               key={occ.id}
-              onPress={() => router.push('/(tabs)/outfits')}
+              onPress={() => router.push('/(tabs)/outfits' as any)}
               activeOpacity={0.75}
               style={{
                 backgroundColor: SURFACE,
@@ -148,12 +144,12 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
-        {/* AI outfit suggestions */}
+        {/* Saved outfit suggestions */}
         {recentOutfits.length > 0 && (
           <View style={{ marginTop: 32 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 14 }}>
-              <Text style={{ color: TEXT, fontSize: 17, fontWeight: '600' }}>AI outfit suggestions</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/outfits')}>
+              <Text style={{ color: TEXT, fontSize: 17, fontWeight: '600' }}>My lookbook</Text>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/outfits', params: { tab: 'saved' } } as any)}>
                 <Text style={{ color: PURPLE_BRIGHT, fontSize: 13 }}>See all →</Text>
               </TouchableOpacity>
             </View>
@@ -163,8 +159,10 @@ export default function HomeScreen() {
               contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 4 }}
             >
               {recentOutfits.map((outfit, i) => (
-                <View
+                <TouchableOpacity
                   key={outfit.id}
+                  onPress={() => router.push({ pathname: '/(tabs)/outfits', params: { tab: 'saved' } } as any)}
+                  activeOpacity={0.85}
                   style={{
                     width: 155,
                     backgroundColor: SURFACE,
@@ -178,14 +176,14 @@ export default function HomeScreen() {
                     <Image source={{ uri: outfit.image_url }} style={{ width: 155, height: 155 }} resizeMode="cover" />
                   ) : (
                     <View style={{ width: 155, height: 155, backgroundColor: SURFACE_SOFT, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: MUTED, fontSize: 28 }}>✦</Text>
+                      <Text style={{ color: MUTED, fontSize: 28 }}>✨</Text>
                     </View>
                   )}
                   <View style={{ padding: 12 }}>
                     <Text style={{ color: TEXT, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{outfit.occasion}</Text>
                     <Text style={{ color: MUTED, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{outfit.vibe ?? ''}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
@@ -195,10 +193,15 @@ export default function HomeScreen() {
         <View style={{ marginTop: 32, paddingHorizontal: 20 }}>
           <Text style={{ color: TEXT, fontSize: 17, fontWeight: '600', marginBottom: 14 }}>Quick actions</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {QUICK_ACTIONS.map((action) => (
+            {[
+              { id: 'add', label: 'Add new item', icon: '➕', route: '/wardrobe/add', params: undefined },
+              { id: 'outfits', label: 'Get outfit ideas', icon: '✨', route: '/(tabs)/outfits', params: undefined },
+              { id: 'lookbook', label: 'My lookbook', icon: '♡', route: '/(tabs)/outfits', params: { tab: 'saved' } },
+              { id: 'gaps', label: 'Gap analysis', icon: '◈', route: '/(tabs)/gaps', params: undefined },
+            ].map((action) => (
               <TouchableOpacity
                 key={action.id}
-                onPress={() => router.push(action.route as any)}
+                onPress={() => router.push(action.params ? { pathname: action.route, params: action.params } as any : action.route as any)}
                 activeOpacity={0.8}
                 style={{
                   width: '47%',
@@ -213,7 +216,7 @@ export default function HomeScreen() {
                 }}
               >
                 <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: SURFACE_SOFT, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: PURPLE_BRIGHT, fontSize: 17, fontWeight: '500' }}>{action.icon}</Text>
+                  <Text style={{ fontSize: 17 }}>{action.icon}</Text>
                 </View>
                 <Text style={{ color: TEXT, fontSize: 13, fontWeight: '500', flex: 1 }}>{action.label}</Text>
               </TouchableOpacity>

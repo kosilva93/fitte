@@ -10,9 +10,9 @@ export default function WardrobeLayout() {
           presentation: 'modal',
           headerShown: true,
           headerTitle: 'Add Item',
-          headerStyle: { backgroundColor: '#000' },
-          headerTintColor: '#fff',
-          headerTitleStyle: { color: '#fff', fontWeight: '600' },
+          headerStyle: { backgroundColor: '#060912' },
+          headerTintColor: '#A78BFA',
+          headerTitleStyle: { color: '#F5F6FA', fontWeight: '600' },
         }}
       />
     </Stack>

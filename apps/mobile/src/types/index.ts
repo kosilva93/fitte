@@ -48,6 +48,8 @@ export interface GeneratedOutfit {
 
 export interface UserProfile {
   id: string;
+  first_name: string | null;
+  last_name: string | null;
   age: number | null;
   city: string | null;
   country: string | null;

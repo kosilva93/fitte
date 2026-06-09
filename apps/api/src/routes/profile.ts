@@ -22,6 +22,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 const updateProfileSchema = z.object({
+  first_name: z.string().max(100).optional(),
+  last_name: z.string().max(100).optional(),
   age: z.number().int().min(1).max(120).optional(),
   city: z.string().optional(),
   country: z.string().length(2).optional(),
