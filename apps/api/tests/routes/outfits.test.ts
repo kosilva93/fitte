@@ -11,7 +11,11 @@ vi.mock('../../src/utils/supabase', () => ({
 }));
 
 vi.mock('../../src/services/outfitService', () => ({
-  generateOutfit: vi.fn(),
+  generateOutfitStream: vi.fn(),
+}));
+
+vi.mock('../../src/services/visualizeService', () => ({
+  visualizeOutfit: vi.fn().mockResolvedValue('https://example.com/outfit.png'),
 }));
 
 vi.mock('../../src/utils/logger', () => ({
@@ -19,12 +23,18 @@ vi.mock('../../src/utils/logger', () => ({
 }));
 
 import { supabase } from '../../src/utils/supabase';
-import { generateOutfit } from '../../src/services/outfitService';
+import { generateOutfitStream } from '../../src/services/outfitService';
 import outfitsRouter from '../../src/routes/outfits';
 import { errorHandler } from '../../src/middleware/errorHandler';
 
 const mockSupabase = vi.mocked(supabase);
-const mockGenerateOutfit = vi.mocked(generateOutfit);
+const mockGenerateOutfitStream = vi.mocked(generateOutfitStream);
+
+function mockOutfitStream(outfits: object[]) {
+  mockGenerateOutfitStream.mockImplementation(async function* () {
+    for (const outfit of outfits) yield outfit as any;
+  });
+}
 
 function buildApp(userId = 'user-1', userTier: 'free' | 'pro' | 'premium' = 'free') {
   const app = express();
@@ -73,7 +83,7 @@ describe('POST /outfits/generate', () => {
     const res = await httpRequest(app, 'POST', '/outfits/generate', { vibe: 'casual' });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('Validation error');
+    expect(res.body.error).toBe('Invalid request body');
   });
 
   it('returns 400 when occasion is empty string', async () => {
@@ -85,7 +95,7 @@ describe('POST /outfits/generate', () => {
 
   it('generates outfits for pro user without weekly limit check', async () => {
     const outfits = [{ outfit_name: 'Casual Friday', items: [] }];
-    mockGenerateOutfit.mockResolvedValue(outfits as any);
+    mockOutfitStream(outfits);
     mockSupabase.rpc.mockResolvedValue({ error: null } as any);
 
     const app = buildApp('user-1', 'pro');
@@ -96,7 +106,7 @@ describe('POST /outfits/generate', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.outfits).toEqual(outfits);
-    expect(mockGenerateOutfit).toHaveBeenCalledWith('user-1', expect.objectContaining({
+    expect(mockGenerateOutfitStream).toHaveBeenCalledWith('user-1', expect.objectContaining({
       occasion: 'date night',
       vibe: 'romantic',
     }));
@@ -118,7 +128,7 @@ describe('POST /outfits/generate', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.error).toContain('Weekly outfit limit');
-    expect(mockGenerateOutfit).not.toHaveBeenCalled();
+    expect(mockGenerateOutfitStream).not.toHaveBeenCalled();
   });
 
   it('allows free user who has used fewer than 3 outfits', async () => {
@@ -131,14 +141,14 @@ describe('POST /outfits/generate', () => {
       }),
     };
     mockSupabase.from.mockReturnValue(mockChain as any);
-    mockGenerateOutfit.mockResolvedValue([{ outfit_name: 'Monday look' }] as any);
+    mockOutfitStream([{ outfit_name: 'Monday look' }]);
     mockSupabase.rpc.mockResolvedValue({ error: null } as any);
 
     const app = buildApp('user-1', 'free');
     const res = await httpRequest(app, 'POST', '/outfits/generate', { occasion: 'work' });
 
     expect(res.status).toBe(200);
-    expect(mockGenerateOutfit).toHaveBeenCalledOnce();
+    expect(mockGenerateOutfitStream).toHaveBeenCalledOnce();
   });
 
   it('allows free user with no prior usage (null counter)', async () => {
@@ -148,7 +158,7 @@ describe('POST /outfits/generate', () => {
       single: vi.fn().mockResolvedValue({ data: null, error: null }),
     };
     mockSupabase.from.mockReturnValue(mockChain as any);
-    mockGenerateOutfit.mockResolvedValue([{ outfit_name: 'Fresh start' }] as any);
+    mockOutfitStream([{ outfit_name: 'Fresh start' }]);
     mockSupabase.rpc.mockResolvedValue({ error: null } as any);
 
     const app = buildApp('user-1', 'free');
@@ -165,7 +175,7 @@ describe('POST /outfits/generate', () => {
       single: vi.fn().mockResolvedValue({ data: { outfit_count: 1 }, error: null }),
     };
     mockSupabase.from.mockReturnValue(mockChain as any);
-    mockGenerateOutfit.mockResolvedValue([{ outfit_name: 'Look 2' }] as any);
+    mockOutfitStream([{ outfit_name: 'Look 2' }]);
     mockSupabase.rpc.mockResolvedValue({ error: null } as any);
 
     const app = buildApp('user-1', 'free');
@@ -177,8 +187,8 @@ describe('POST /outfits/generate', () => {
     );
   });
 
-  it('passes optional fields (venue, time_of_day) to generateOutfit', async () => {
-    mockGenerateOutfit.mockResolvedValue([] as any);
+  it('passes optional fields (venue, time_of_day) to generateOutfitStream', async () => {
+    mockOutfitStream([]);
     mockSupabase.rpc.mockResolvedValue({ error: null } as any);
 
     const app = buildApp('user-1', 'premium');
@@ -189,7 +199,7 @@ describe('POST /outfits/generate', () => {
       time_of_day: 'evening',
     });
 
-    expect(mockGenerateOutfit).toHaveBeenCalledWith('user-1', expect.objectContaining({
+    expect(mockGenerateOutfitStream).toHaveBeenCalledWith('user-1', expect.objectContaining({
       venue: 'Museum of Modern Art',
       time_of_day: 'evening',
     }));

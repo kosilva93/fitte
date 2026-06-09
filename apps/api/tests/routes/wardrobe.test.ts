@@ -14,6 +14,10 @@ vi.mock('../../src/utils/logger', () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }));
 
+vi.mock('../../src/services/classificationService', () => ({
+  classifyWardrobeItem: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { supabase } from '../../src/utils/supabase';
 import wardrobeRouter from '../../src/routes/wardrobe';
 import { errorHandler } from '../../src/middleware/errorHandler';
@@ -110,6 +114,11 @@ describe('POST /wardrobe/items', () => {
       single: vi.fn().mockResolvedValue({ data: newItem, error: null }),
     };
     mockSupabase.from.mockReturnValue(mockChain as any);
+    (mockSupabase.storage.from as any).mockReturnValue({
+      getPublicUrl: vi.fn().mockReturnValue({
+        data: { publicUrl: 'https://storage.example.com/user-1/1234567890.jpg' },
+      }),
+    });
 
     const app = buildApp('user-1', 'pro');
     const res = await request(app, 'POST', '/wardrobe/items', {
