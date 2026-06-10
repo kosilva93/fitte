@@ -1,12 +1,11 @@
-import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 import '../global.css';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { isSupabaseConfigured, supabase } from '@/utils/supabase';
 import { useAuthStore } from '@/store/authStore';
 
 const queryClient = new QueryClient({
@@ -19,13 +18,17 @@ const queryClient = new QueryClient({
 });
 
 async function syncTier(userId: string, setUserTier: (t: 'free' | 'pro' | 'premium') => void) {
-  const { data } = await supabase
-    .from('user_subscriptions')
-    .select('tier, valid_until')
-    .eq('user_id', userId)
-    .single();
-  const isActive = data?.valid_until ? new Date(data.valid_until) > new Date() : true;
-  setUserTier((data?.tier && isActive) ? data.tier : 'free');
+  try {
+    const { data } = await supabase
+      .from('user_subscriptions')
+      .select('tier, valid_until')
+      .eq('user_id', userId)
+      .single();
+    const isActive = data?.valid_until ? new Date(data.valid_until) > new Date() : true;
+    setUserTier((data?.tier && isActive) ? data.tier : 'free');
+  } catch {
+    setUserTier('free');
+  }
 }
 
 export default function RootLayout() {
@@ -52,18 +55,23 @@ export default function RootLayout() {
 
     configurePurchases();
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        syncTier(session.user.id, setUserTier);
-        if (purchases) purchases.logIn(session.user.id).catch(() => {});
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        if (session) {
+          syncTier(session.user.id, setUserTier).catch(() => {});
+          if (purchases) purchases.logIn(session.user.id).catch(() => {});
+        }
+      })
+      .catch(() => {
+        setSession(null);
+        setUserTier('free');
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-        syncTier(session.user.id, setUserTier);
+        syncTier(session.user.id, setUserTier).catch(() => {});
         if (purchases) purchases.logIn(session.user.id).catch(() => {});
       } else {
         if (purchases) purchases.logOut().catch(() => {});
@@ -73,18 +81,31 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, [setSession, setUserTier]);
 
+  const content = !isSupabaseConfigured ? (
+    <View style={{ flex: 1, backgroundColor: '#060912', justifyContent: 'center', padding: 24 }}>
+      <Text style={{ color: '#F5F6FA', fontSize: 22, fontWeight: '700', marginBottom: 12 }}>
+        Configuration required
+      </Text>
+      <Text style={{ color: '#9CA3AF', fontSize: 14, lineHeight: 22 }}>
+        Fitte is missing its Supabase environment configuration for this build.
+      </Text>
+    </View>
+  ) : (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="paywall" />
+      <Stack.Screen name="profile-setup" />
+      <Stack.Screen name="privacy" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
+  );
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="paywall" />
-          <Stack.Screen name="profile-setup" />
-          <Stack.Screen name="privacy" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        {content}
       </QueryClientProvider>
     </ErrorBoundary>
   );
